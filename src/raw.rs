@@ -110,7 +110,12 @@ impl<R: BufRead> Iterator for RawReader<R> {
             return None;
         }
         let start = self.summary.bytes_read;
-        match read_record(&mut self.reader, &self.options, &mut self.summary) {
+        match read_record(
+            &mut self.reader,
+            &self.options,
+            &mut self.summary,
+            Vec::new(),
+        ) {
             Ok(Some(record)) => {
                 self.summary.lines += 1;
                 if record.too_long {

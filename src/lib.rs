@@ -16,8 +16,10 @@ mod parser;
 mod raw;
 mod reader;
 mod roots;
+mod statistics;
 mod titles;
 mod tokens;
+mod usage_fields;
 
 pub use accounting::UsageAdjustment;
 pub use agent::*;

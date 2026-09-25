@@ -1,5 +1,6 @@
 use super::{ReadStatus, SessionReader, TailMode, input::read_record};
-use crate::parser::{parse, tally};
+use crate::parser::tally;
+use crate::statistics::{DecodeError, decode};
 use crate::{Event, LineErrorKind, Located, Location, StreamError};
 use std::io::BufRead;
 
@@ -14,7 +15,12 @@ impl<R: BufRead> Iterator for SessionReader<R> {
         }
         loop {
             let start = self.summary.bytes_read;
-            let record = match read_record(&mut self.source, &self.opts, &mut self.summary) {
+            let record = match read_record(
+                &mut self.source,
+                &self.opts,
+                &mut self.summary,
+                std::mem::take(&mut self.scratch),
+            ) {
                 Ok(Some(record)) => record,
                 Ok(None) => {
                     self.ended = true;
@@ -40,15 +46,19 @@ impl<R: BufRead> Iterator for SessionReader<R> {
                 None
             };
             if let Some(kind) = error {
+                self.scratch = record.bytes;
                 return Some(Err(self.line_error(start, kind)));
             }
             if record.bytes.iter().all(u8::is_ascii_whitespace) {
+                self.scratch = record.bytes;
                 self.checkpoint_record();
                 continue;
             }
-            let value = match serde_json::from_slice(&record.bytes) {
-                Ok(value) => value,
-                Err(e)
+            let decoded = decode(self.agent, &record.bytes, &mut self.state, &self.opts);
+            self.scratch = record.bytes;
+            let mut parsed = match decoded {
+                Ok(parsed) => parsed,
+                Err(DecodeError::Json(e))
                     if !record.newline
                         && e.is_eof()
                         && self.opts.tail == TailMode::AllowIncomplete =>
@@ -58,26 +68,26 @@ impl<R: BufRead> Iterator for SessionReader<R> {
                     self.summary.status = ReadStatus::IncompleteTail;
                     return None;
                 }
-                Err(_) => return Some(Err(self.line_error(start, LineErrorKind::InvalidJson))),
+                Err(DecodeError::Json(_)) => {
+                    return Some(Err(self.line_error(start, LineErrorKind::InvalidJson)));
+                }
+                Err(DecodeError::Fields(kind)) => return Some(Err(self.line_error(start, kind))),
             };
-            let parsed = match parse(
-                self.agent,
-                &value,
-                &mut self.state,
-                self.opts.codex_usage,
-                self.opts.include,
-                self.opts.accounting,
-            ) {
-                Ok(p) => p,
-                Err(kind) => return Some(Err(self.line_error(start, kind))),
-            };
+            if let Some((known, label)) = &parsed.ignored_one {
+                if *known {
+                    tally(&mut self.summary.ignored_types, label);
+                } else {
+                    tally(&mut self.summary.unknown_types, label);
+                }
+            }
             for unknown in &parsed.unknown {
                 tally(&mut self.summary.unknown_types, unknown);
             }
             for ignored in &parsed.ignored {
                 tally(&mut self.summary.ignored_types, ignored);
             }
-            for (event_index, mut event) in parsed.events {
+            let event_count = parsed.events.len();
+            for (ordinal, (event_index, mut event)) in parsed.events.into_iter().enumerate() {
                 if let Event::Message(m) = &mut event {
                     m.is_sidechain |= self.state.sidechain || self.file_sidechain;
                 }
@@ -93,10 +103,27 @@ impl<R: BufRead> Iterator for SessionReader<R> {
                         event_index,
                     },
                     at: parsed.at,
-                    timestamp_text: parsed.timestamp_text.clone(),
-                    record_id: parsed.record_id.clone(),
+                    timestamp_text: if ordinal + 1 == event_count {
+                        parsed.timestamp_text.take()
+                    } else {
+                        parsed.timestamp_text.clone()
+                    },
+                    record_id: if ordinal + 1 == event_count {
+                        parsed.record_id.take()
+                    } else {
+                        parsed.record_id.clone()
+                    },
+                    record_type: if ordinal + 1 == event_count {
+                        parsed.record_type.take()
+                    } else {
+                        parsed.record_type.clone()
+                    },
                     session_id: self.state.session_id.clone(),
-                    message_id: parsed.message_id.clone(),
+                    message_id: if ordinal + 1 == event_count {
+                        parsed.message_id.take()
+                    } else {
+                        parsed.message_id.clone()
+                    },
                     value: event,
                 });
             }

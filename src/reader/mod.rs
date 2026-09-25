@@ -21,6 +21,7 @@ pub struct SessionReader<R = BufReader<File>> {
     ended: bool,
     checkpoint: Option<u64>,
     file_sidechain: bool,
+    scratch: Vec<u8>,
 }
 
 pub fn read(file: &SessionFile, opts: &ReadOptions) -> Result<SessionReader, ReadError> {
@@ -55,6 +56,7 @@ pub fn read_from<R: BufRead>(
         ended: false,
         checkpoint: None,
         file_sidechain: false,
+        scratch: Vec::new(),
     })
 }
 

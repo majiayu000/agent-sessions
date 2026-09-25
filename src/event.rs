@@ -18,6 +18,7 @@ pub struct Located<T> {
     pub at: Option<DateTime<Utc>>,
     pub timestamp_text: Option<String>,
     pub record_id: Option<String>,
+    pub record_type: Option<String>,
     pub session_id: Option<String>,
     pub message_id: Option<String>,
     pub value: T,

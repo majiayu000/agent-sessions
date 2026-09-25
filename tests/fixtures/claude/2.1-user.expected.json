@@ -12,6 +12,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "user",
         "session_id": "session-fixture",
         "timestamp_text": "2026-09-25T00:00:00Z",
         "value": {
@@ -41,6 +42,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "user",
         "session_id": "session-fixture",
         "timestamp_text": "2026-09-25T00:00:00Z",
         "value": {

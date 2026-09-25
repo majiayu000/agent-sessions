@@ -16,10 +16,12 @@ pub(crate) struct Parsed {
     pub accounting: crate::AccountingPolicy,
     pub timestamp_text: Option<String>,
     pub record_id: Option<String>,
+    pub record_type: Option<String>,
     pub events: Vec<(usize, Event)>,
     pub include: EventKinds,
     pub unknown: Vec<String>,
     pub ignored: Vec<String>,
+    pub ignored_one: Option<(bool, std::borrow::Cow<'static, str>)>,
     pub at: Option<DateTime<Utc>>,
     pub message_id: Option<String>,
 }
@@ -29,6 +31,9 @@ impl Parsed {
     }
     pub fn emit(&mut self, slot: usize, event: Event) {
         if self.include.includes(&event) {
+            if self.events.capacity() == 0 {
+                self.events.reserve_exact(1);
+            }
             self.events.push((slot, event));
         }
     }
@@ -111,6 +116,9 @@ pub(crate) fn parse(
     include: EventKinds,
     accounting: crate::AccountingPolicy,
 ) -> Result<Parsed, LineErrorKind> {
+    if include.contains(EventKinds::USAGE) {
+        crate::usage_fields::validate(agent, v)?;
+    }
     let mut candidate = state.clone();
     let mut parsed = Parsed {
         at: timestamp(v)?,
@@ -118,6 +126,7 @@ pub(crate) fn parse(
             .and_then(Value::as_str)
             .map(str::to_owned),
         record_id: string(v, "uuid"),
+        record_type: string(v, "type"),
         accounting,
         include,
         ..Parsed::default()
@@ -141,6 +150,10 @@ pub(crate) fn parse(
     Ok(parsed)
 }
 pub(crate) fn tally(map: &mut BTreeMap<String, u64>, key: &str) {
+    if let Some(count) = map.get_mut(key) {
+        *count = count.saturating_add(1);
+        return;
+    }
     // Avoid retaining arbitrarily many or arbitrarily long attacker-controlled labels.
     let key: String = key.chars().take(96).collect();
     let key = if map.len() >= 128 && !map.contains_key(&key) {

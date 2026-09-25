@@ -12,6 +12,7 @@
         },
         "message_id": "nested-fixture",
         "record_id": null,
+        "record_type": "progress",
         "session_id": null,
         "timestamp_text": "2026-09-25T00:00:00Z",
         "value": {

@@ -61,3 +61,43 @@ distinction. Added per-host environment resolution and fixed empty-model fallbac
 selection. Validation: 51 integration tests plus fmt/check/clippy passed on 1.88.
 These additions were required by existing ccstats integration contracts, not
 new product behavior. Existing v0.1 strict error tests remain unchanged/passing.
+
+## T3 parity / performance investigation
+
+Initial consumer tests passed (985 tests after moving helper tests into the shared
+crate). Native row comparison against the pinned original Claude parser passed
+for all 135 transcript files; discovery list/order is identical. Temporary diagnostic
+module was removed from the consumer source. Log: /tmp/ccstats-raw-diagnostic.log.
+
+CLI comparison requires excluding pricing_cache_age_seconds and canonicalizing
+session/tool tie order; floating sums use tiny numerical tolerance. Three Claude
+day cost values also varied in the ORIGINAL 0.8 binary with fixed input/pricing:
+12 single-thread runs produced two vectors, 4 and 8 times respectively. Artifact:
+baseline/pricing-variation.json. This is pre-existing price alias overwrite order
+behavior, not a transcript row difference. No pricing rules were changed for it.
+
+Naive shared Value parsing failed the performance gate (19.29 s median vs 3.15 s).
+Added borrowed selective Codex headers, skipped unrequested bodies, reusable typed
+reader scratch buffers and memchr framing. Semantic differential tests plus
+source/SDK/negative-counter tests pass; optimized release measurement is next.
+
+## T3 implementation and local gates completed
+
+ccstats now consumes agent-sessions for Claude/Codex discovery, usage, client tools
+and native title indices. Keeps app model normalization, buckets, dedup keys and
+SDK types. Interactive includes IDE. Response-only Codex files are supported by
+an error-free legacy-ledger fallback; mixed ledgers are never summed.
+
+Final six report comparisons (daily/session/tools, Codex daily/monthly/session)
+matched after excluding cache age, stable tie ordering and negligible float sums.
+Artifact: baseline/comparison-after-native.json (all zero differences).
+
+Five paired alternating full Codex runs: old median wall 5.01 s, new 4.73 s
+(ratio 0.944); median user CPU 6.45 s versus 6.68 s (+3.6%). Apple M1 Pro, 8 CPUs,
+32 GiB RAM. Godot and other desktop apps were active; wall timing is noisy and
+this is not an idle-machine universal speed claim. Both meet the 5% paired gate.
+Artifact: baseline/paired-native.json. Application cache disabled, OS cache retained.
+
+Fresh ccstats full tests, fmt/check/clippy passed; shared strict/statistics tests
+and 60-second ASan fuzz (including selective statistics) passed. Consumer lockfiles
+still use local Cargo patch resolution pending the publication step.

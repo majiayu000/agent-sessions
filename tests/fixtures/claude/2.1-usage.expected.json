@@ -12,6 +12,7 @@
         },
         "message_id": "message-fixture",
         "record_id": null,
+        "record_type": "assistant",
         "session_id": null,
         "timestamp_text": null,
         "value": {
@@ -41,6 +42,7 @@
         },
         "message_id": "message-fixture",
         "record_id": null,
+        "record_type": "assistant",
         "session_id": null,
         "timestamp_text": null,
         "value": {
@@ -72,6 +74,7 @@
         },
         "message_id": "message-fixture",
         "record_id": null,
+        "record_type": "assistant",
         "session_id": null,
         "timestamp_text": null,
         "value": {

@@ -12,9 +12,10 @@ pub(crate) fn read_record<R: BufRead>(
     reader: &mut R,
     opts: &ReadOptions,
     summary: &mut ReadSummary,
+    mut bytes: Vec<u8>,
 ) -> Result<Option<Record>, StreamError> {
     let start = summary.bytes_read;
-    let mut bytes = Vec::new();
+    bytes.clear();
     let mut too_long = false;
     let mut newline = false;
     loop {
@@ -51,10 +52,7 @@ pub(crate) fn read_record<R: BufRead>(
             .len()
             .min(usize::try_from(remaining).unwrap_or(usize::MAX));
         let slice = &buf[..available];
-        let n = slice
-            .iter()
-            .position(|b| *b == b'\n')
-            .map_or(available, |i| i + 1);
+        let n = memchr::memchr(b'\n', slice).map_or(available, |i| i + 1);
         newline = slice.get(n.saturating_sub(1)) == Some(&b'\n');
         if !too_long {
             if opts

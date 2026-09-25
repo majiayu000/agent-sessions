@@ -24,12 +24,23 @@ pub(super) fn token_count(
         None if statistics => return Ok(None),
         None => return Err(LineErrorKind::MissingField("total_token_usage")),
     };
-    let (total, mut adjustments) = counts(total, false, policy)?;
+    let (total, adjustments) = counts(total, false, policy)?;
     let last = info
         .get("last_token_usage")
         .filter(|v| !v.is_null())
         .map(|v| counts(v, false, policy))
         .transpose()?;
+    from_counts(total, last, adjustments, state, policy)
+}
+
+pub(crate) fn from_counts(
+    total: crate::TokenCounts,
+    last: Option<(crate::TokenCounts, Vec<UsageAdjustment>)>,
+    mut adjustments: Vec<UsageAdjustment>,
+    state: &mut State,
+    policy: AccountingPolicy,
+) -> Result<Option<Usage>, LineErrorKind> {
+    let statistics = policy == AccountingPolicy::UsageStatistics;
     let duplicate = state.previous.is_some_and(|prev| {
         if statistics {
             total.statistics_eq(prev)
@@ -82,7 +93,7 @@ pub(super) fn token_count(
     Ok(Some(Usage {
         adjustments,
         dedup_key: None,
-        model: state.model.clone(),
+        model: None,
         counts,
         cumulative: Some(total),
         semantics: TokenSemantics::CodexInclusive,
@@ -113,4 +124,15 @@ pub(super) fn response(p: &Value, state: &State) -> Result<Usage, LineErrorKind>
         endpoint: Endpoint::Unknown,
         inference_geo: None,
     })
+}
+
+pub(crate) fn apply_model(usage: &mut Usage, state: &mut State, observed: Option<String>) {
+    if let Some(model) = observed {
+        if state.model.as_deref() != Some(model.as_str()) {
+            state.model = Some(model.clone());
+        }
+        usage.model = Some(model);
+    } else {
+        usage.model = state.model.clone();
+    }
 }

@@ -12,6 +12,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "token_usage_record",
         "session_id": null,
         "timestamp_text": null,
         "value": {

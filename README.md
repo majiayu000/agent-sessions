@@ -108,7 +108,7 @@ counted separately and may require an additional application completeness gate.
 it is not a license to advance an application cursor after failure.
 
 `EventKinds` selects projections while retaining deterministic event indexes.
-Excluded payloads are not validated or materialized: malformed usage cannot
+Excluded payloads are not projected or semantically validated: malformed usage cannot
 block a message-only consumer, and a usage-only reader does not require content.
 Relevant metadata continuity and top-level diagnostics remain active; content
 diagnostics cover inspected projections. Event slots are 0=Meta, 1=Message,
@@ -176,3 +176,8 @@ Located.timestamp_text retains native timestamp spelling, independently of parse
 UTC time. record_id (Claude UUID) and message_id (provider message ID) are distinct.
 ToolCallKind distinguishes client functions, custom calls and server tools.
 Roots::from_env_for resolves only one host, avoiding unrelated override failures.
+
+For Codex statistical projections, the reader borrows envelope fields and skips
+unrequested message/tool bodies before materializing values. Selected records use
+the same semantic decoder. Framing reuses its input buffer and uses vectorized
+newline search; raw consumers still own the exact bytes of each returned record.

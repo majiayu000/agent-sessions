@@ -12,6 +12,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "response_item",
         "session_id": null,
         "timestamp_text": null,
         "value": {
@@ -38,6 +39,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "response_item",
         "session_id": null,
         "timestamp_text": null,
         "value": {

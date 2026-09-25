@@ -9,6 +9,11 @@ fuzz_target!(|data: &[u8]| {
     for _ in raw.by_ref() {}
     let summary=raw.finish();
     assert!(summary.delivered_through<=summary.bytes_read);
+    let mut statistical=read_from(Agent::Codex,Cursor::new(data),&ReadOptions {
+        accounting:AccountingPolicy::UsageStatistics,include:EventKinds::USAGE.union(EventKinds::META),
+        max_file_bytes:Some(65536),max_line_bytes:Some(8192),..Default::default()
+    }).unwrap();
+    for _ in statistical.by_ref() {}
     for agent in [Agent::ClaudeCode,Agent::Codex] {
         let history_opts=HistoryOptions {read:raw_opts.clone(),tail:TailMode::AllowIncomplete,..Default::default()};
         let mut history=read_history_from(agent,Cursor::new(data),&history_opts).unwrap();

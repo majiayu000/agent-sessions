@@ -12,6 +12,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "turn_context",
         "session_id": null,
         "timestamp_text": null,
         "value": {
@@ -41,6 +42,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "event_msg",
         "session_id": null,
         "timestamp_text": null,
         "value": {
@@ -87,6 +89,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "event_msg",
         "session_id": null,
         "timestamp_text": null,
         "value": {
@@ -133,6 +136,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "event_msg",
         "session_id": null,
         "timestamp_text": null,
         "value": {

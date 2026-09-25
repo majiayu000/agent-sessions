@@ -148,6 +148,7 @@ impl<R: BufRead> Iterator for HistoryReader<R> {
                         at: entry.at,
                         timestamp_text: None,
                         record_id: None,
+                        record_type: None,
                         session_id: entry.session_id.clone(),
                         message_id: None,
                         value: entry,

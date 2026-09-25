@@ -56,7 +56,7 @@ fn statistics_missing_fields_stay_unknown_in_native_usage() {
 #[test]
 fn cumulative_statistics_policy_preserves_reset_contract() {
     let row = |n| {
-        json!({"type":"event_msg","payload":{"type":"token_count","info":{
+        json!({"type":"event_msg","timestamp":"2026-01-01T00:00:00Z","payload":{"type":"token_count","info":{
         "total_token_usage":{"input_tokens":n}}}})
         .to_string()
     };
@@ -107,4 +107,50 @@ fn codex_model_fallback_skips_empty_values() {
         AccountingPolicy::Strict,
     );
     assert_eq!(rows[0].model.as_deref(), Some("model-two"));
+}
+
+#[test]
+fn malformed_model_is_not_silently_replaced_with_unknown_pricing() {
+    let row = json!({"message":{"model":42,"usage":{"input_tokens":1}}}).to_string();
+    let mut r = read_from(
+        Agent::ClaudeCode,
+        Cursor::new(row),
+        &ReadOptions {
+            include: EventKinds::USAGE,
+            accounting: AccountingPolicy::UsageStatistics,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(matches!(
+        r.next(),
+        Some(Err(StreamError::Line {
+            kind: LineErrorKind::InvalidField(_),
+            ..
+        }))
+    ));
+}
+
+#[test]
+fn statistics_checks_missing_time_before_ignoring_incomplete_usage() {
+    let row = json!({"type":"event_msg","payload":{"type":"token_count","info":{
+        "last_token_usage":{"input_tokens":1}}}})
+    .to_string();
+    let mut reader = read_from(
+        Agent::Codex,
+        Cursor::new(row),
+        &ReadOptions {
+            include: EventKinds::USAGE,
+            accounting: AccountingPolicy::UsageStatistics,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(matches!(
+        reader.next(),
+        Some(Err(StreamError::Line {
+            kind: LineErrorKind::MissingField("timestamp"),
+            ..
+        }))
+    ));
 }

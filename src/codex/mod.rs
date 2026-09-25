@@ -1,6 +1,6 @@
 mod origin;
 mod tools;
-mod usage;
+pub(crate) mod usage;
 use crate::parser::{Parsed, State, required, string, text_projection};
 use crate::{CodexUsageMode, Event, EventKinds, LineErrorKind, Message, MetaUpdate, Origin, Role};
 use serde_json::Value;
@@ -116,12 +116,15 @@ pub(crate) fn parse(
                 "token_count"
                     if mode == CodexUsageMode::TokenCount && p.wants(EventKinds::USAGE) =>
                 {
+                    if p.accounting == crate::AccountingPolicy::UsageStatistics
+                        && payload.get("info").is_some_and(|v| !v.is_null())
+                        && v.get("timestamp").and_then(Value::as_str).is_none()
+                    {
+                        return Err(LineErrorKind::MissingField("timestamp"));
+                    }
                     let observed_model = model(payload);
                     if let Some(mut u) = usage::token_count(payload, state, p.accounting)? {
-                        if let Some(model) = observed_model {
-                            state.model = Some(model.clone());
-                            u.model = Some(model);
-                        }
+                        usage::apply_model(&mut u, state, observed_model);
                         p.emit(2, Event::Usage(u));
                     }
                 }

@@ -12,6 +12,7 @@
         },
         "message_id": null,
         "record_id": null,
+        "record_type": "session_meta",
         "session_id": "session-fixture",
         "timestamp_text": null,
         "value": {
