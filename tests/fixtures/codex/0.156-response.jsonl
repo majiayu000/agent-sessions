@@ -1,0 +1,2 @@
+{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":2,"output_tokens":1}}}}
+{"type":"token_usage_record","payload":{"response_id":"response-fixture","usage":{"input_tokens":100,"cached_input_tokens":20,"cache_write_input_tokens":10,"output_tokens":30,"reasoning_output_tokens":5,"total_tokens":130}}}

@@ -1,0 +1,3 @@
+{"type":"event_msg","payload":{"type":"task_started"}}
+{"type":"event_msg","payload":{"type":"future-event"}}
+{"type":"response_item","payload":{"type":"future-item"}}

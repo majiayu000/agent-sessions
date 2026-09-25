@@ -1,0 +1,72 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 73,
+          "byte_start": 0,
+          "event_index": 1,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "Assistant",
+            "text": ""
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 73,
+          "byte_start": 0,
+          "event_index": 2,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Usage": {
+            "basis": "Message",
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 0,
+              "output": null,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "cumulative": null,
+            "dedup_key": null,
+            "endpoint": "Unknown",
+            "inference_geo": null,
+            "model": null,
+            "semantics": "ClaudeExclusive",
+            "stop_reason": null
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 73,
+    "ignored_types": {},
+    "last_complete_byte": 73,
+    "line_errors": 0,
+    "lines": 1,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

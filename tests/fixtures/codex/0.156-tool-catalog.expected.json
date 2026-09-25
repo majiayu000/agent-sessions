@@ -1,0 +1,15 @@
+{
+  "events": [],
+  "summary": {
+    "bytes_read": 189,
+    "ignored_types": {
+      "response_item:tool_search_output": 1
+    },
+    "last_complete_byte": 189,
+    "line_errors": 0,
+    "lines": 1,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

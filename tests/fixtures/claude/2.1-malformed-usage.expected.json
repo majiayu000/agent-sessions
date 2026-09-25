@@ -1,0 +1,21 @@
+{
+  "events": [
+    {
+      "byte_start": 0,
+      "error": {
+        "InvalidField": "input_tokens"
+      },
+      "line_no": 1
+    }
+  ],
+  "summary": {
+    "bytes_read": 103,
+    "ignored_types": {},
+    "last_complete_byte": 0,
+    "line_errors": 1,
+    "lines": 1,
+    "status": "CompleteWithErrors",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

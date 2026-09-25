@@ -1,0 +1,106 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 129,
+          "byte_start": 0,
+          "event_index": 1,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "Assistant",
+            "text": ""
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 129,
+          "byte_start": 0,
+          "event_index": 3,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "ToolCall": {
+            "arguments": {
+              "Json": {
+                "path": "/fixture/a"
+              }
+            },
+            "id": "tool-fixture",
+            "name": "Read"
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 282,
+          "byte_start": 129,
+          "event_index": 1,
+          "line_no": 2,
+          "record_index": 1
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "User",
+            "text": ""
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 282,
+          "byte_start": 129,
+          "event_index": 3,
+          "line_no": 2,
+          "record_index": 1
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "ToolResult": {
+            "call_id": "tool-fixture",
+            "is_error": false,
+            "text": "result"
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 282,
+    "ignored_types": {},
+    "last_complete_byte": 282,
+    "line_errors": 0,
+    "lines": 2,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 93,
+          "byte_start": 0,
+          "event_index": 1,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "User",
+            "text": ""
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 93,
+    "ignored_types": {
+      "content:tool_reference": 1
+    },
+    "last_complete_byte": 93,
+    "line_errors": 0,
+    "lines": 1,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 120,
+          "byte_start": 0,
+          "event_index": 1,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "User",
+            "text": "question"
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 246,
+          "byte_start": 120,
+          "event_index": 1,
+          "line_no": 2,
+          "record_index": 1
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "Assistant",
+            "text": " answer "
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 338,
+          "byte_start": 246,
+          "event_index": 1,
+          "line_no": 3,
+          "record_index": 2
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "Developer",
+            "text": "policy"
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 338,
+    "ignored_types": {},
+    "last_complete_byte": 338,
+    "line_errors": 0,
+    "lines": 3,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

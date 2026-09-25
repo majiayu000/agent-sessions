@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": "2026-09-25T00:00:00Z",
+        "location": {
+          "byte_end": 176,
+          "byte_start": 0,
+          "event_index": 3,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": "nested-fixture",
+        "session_id": null,
+        "value": {
+          "ToolCall": {
+            "arguments": {
+              "Json": {}
+            },
+            "id": "t",
+            "name": "Read"
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 176,
+    "ignored_types": {
+      "progress": 1
+    },
+    "last_complete_byte": 176,
+    "line_errors": 0,
+    "lines": 1,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

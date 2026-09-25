@@ -1,0 +1,1 @@
+{"type":"response_item","payload":{"type":"tool_search_output","call_id":"fixture-call","status":"completed","tools":[{"type":"function","name":"fixture","parameters":{"type":"object"}}]}}

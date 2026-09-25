@@ -1,0 +1,2 @@
+{"type":"response_item","payload":{"type":"function_call","name":"exec","call_id":"tool-fixture","arguments":"{broken"}}
+{"type":"response_item","payload":{"type":"function_call_output","call_id":"tool-fixture","output":"done"}}

@@ -1,0 +1,3 @@
+{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"question"}]}}
+{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":" answer "}]}}
+{"type":"response_item","payload":{"type":"message","role":"developer","content":"policy"}}

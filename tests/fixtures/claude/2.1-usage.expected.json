@@ -1,0 +1,99 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 352,
+          "byte_start": 0,
+          "event_index": 0,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": "message-fixture",
+        "session_id": null,
+        "value": {
+          "Meta": {
+            "agent_version": "2.1.fixture",
+            "cwd": "/fixture/project",
+            "git_branch": "main",
+            "model": "model-fixture",
+            "origin": null,
+            "originator": null,
+            "session_id": null,
+            "source": null,
+            "thread_source": null
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 352,
+          "byte_start": 0,
+          "event_index": 1,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": "message-fixture",
+        "session_id": null,
+        "value": {
+          "Message": {
+            "is_meta": false,
+            "is_sidechain": false,
+            "parent_id": null,
+            "role": "Assistant",
+            "text": "ok"
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 352,
+          "byte_start": 0,
+          "event_index": 2,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": "message-fixture",
+        "session_id": null,
+        "value": {
+          "Usage": {
+            "basis": "Message",
+            "counts": {
+              "cache_read": 30,
+              "cache_write": 20,
+              "cache_write_1h": 5,
+              "input": 10,
+              "output": 2,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "cumulative": null,
+            "dedup_key": "claude:message-fixture",
+            "endpoint": "Native",
+            "inference_geo": "not_available",
+            "model": "model-fixture",
+            "semantics": "ClaudeExclusive",
+            "stop_reason": null
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 352,
+    "ignored_types": {},
+    "last_complete_byte": 352,
+    "line_errors": 0,
+    "lines": 1,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

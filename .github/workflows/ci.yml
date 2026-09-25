@@ -1,0 +1,40 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: ["1.88.0", stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo test --locked --all-targets
+      - run: cargo test --locked --doc
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
+      - name: Seed with synthetic fixtures
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          target = Path('fuzz/corpus/stream')
+          target.mkdir(parents=True, exist_ok=True)
+          for source in Path('tests/fixtures').rglob('*.jsonl'):
+              (target / source.name).write_bytes(source.read_bytes())
+          PY
+      - run: cargo +nightly fuzz run stream -- -max_total_time=60 -max_len=65536 -verbosity=0

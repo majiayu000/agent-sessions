@@ -1,0 +1,170 @@
+{
+  "events": [
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 60,
+          "byte_start": 0,
+          "event_index": 0,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Meta": {
+            "agent_version": null,
+            "cwd": null,
+            "git_branch": null,
+            "model": "model-fixture",
+            "origin": "Unknown",
+            "originator": null,
+            "session_id": null,
+            "source": null,
+            "thread_source": null
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 206,
+          "byte_start": 60,
+          "event_index": 2,
+          "line_no": 2,
+          "record_index": 1
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Usage": {
+            "basis": "InitialCumulative",
+            "counts": {
+              "cache_read": 2,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 100,
+              "output": 1,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "cumulative": {
+              "cache_read": 2,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 100,
+              "output": 1,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "dedup_key": null,
+            "endpoint": "Unknown",
+            "inference_geo": null,
+            "model": "model-fixture",
+            "semantics": "CodexInclusive",
+            "stop_reason": null
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 554,
+          "byte_start": 352,
+          "event_index": 2,
+          "line_no": 4,
+          "record_index": 3
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Usage": {
+            "basis": "LastSample",
+            "counts": {
+              "cache_read": null,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 7,
+              "output": 1,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "cumulative": {
+              "cache_read": 2,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 200,
+              "output": 1,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "dedup_key": null,
+            "endpoint": "Unknown",
+            "inference_geo": null,
+            "model": "model-fixture",
+            "semantics": "CodexInclusive",
+            "stop_reason": null
+          }
+        }
+      }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 700,
+          "byte_start": 554,
+          "event_index": 2,
+          "line_no": 5,
+          "record_index": 4
+        },
+        "message_id": null,
+        "session_id": null,
+        "value": {
+          "Usage": {
+            "basis": "CumulativeDelta",
+            "counts": {
+              "cache_read": 0,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 30,
+              "output": 0,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "cumulative": {
+              "cache_read": 2,
+              "cache_write": null,
+              "cache_write_1h": null,
+              "input": 230,
+              "output": 1,
+              "reasoning": null,
+              "reported_total": null
+            },
+            "dedup_key": null,
+            "endpoint": "Unknown",
+            "inference_geo": null,
+            "model": "model-fixture",
+            "semantics": "CodexInclusive",
+            "stop_reason": null
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "bytes_read": 700,
+    "ignored_types": {},
+    "last_complete_byte": 700,
+    "line_errors": 0,
+    "lines": 5,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {}
+  }
+}

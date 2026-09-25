@@ -1,0 +1,2 @@
+{"type":"response_item","payload":{"type":"custom_tool_call","name":"patch","call_id":"tool-fixture","input":"patch text"}}
+{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"tool-fixture","output":"ok"}}

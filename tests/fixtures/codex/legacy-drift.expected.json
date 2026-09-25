@@ -1,0 +1,18 @@
+{
+  "events": [],
+  "summary": {
+    "bytes_read": 168,
+    "ignored_types": {
+      "event_msg:task_started": 1
+    },
+    "last_complete_byte": 168,
+    "line_errors": 0,
+    "lines": 3,
+    "status": "Complete",
+    "truncated_tail": false,
+    "unknown_types": {
+      "event_msg:future-event": 1,
+      "response_item:future-item": 1
+    }
+  }
+}
