@@ -1,0 +1,26 @@
+{
+  "codex-monthly": {
+    "differences": 0,
+    "paths": []
+  },
+  "claude-session": {
+    "differences": 0,
+    "paths": []
+  },
+  "codex-session": {
+    "differences": 0,
+    "paths": []
+  },
+  "claude-daily": {
+    "differences": 0,
+    "paths": []
+  },
+  "claude-tools": {
+    "differences": 0,
+    "paths": []
+  },
+  "codex-daily": {
+    "differences": 0,
+    "paths": []
+  }
+}

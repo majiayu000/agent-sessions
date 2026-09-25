@@ -1,0 +1,8 @@
+{
+  "source_head": "666b9ecf0e29c7d8f5b2c1e884a9b2132e78f639",
+  "version": "0.9.0",
+  "binary_sha256": "539ec9366b5818b85e1cfd1eece0ae1ba882a8fe1371970dcdaf79bd43647745",
+  "agent_sessions": "registry 0.2.0",
+  "release_e2e": "passed",
+  "benchmark": "completed: paired-review.json, wall-time ratio0.9915966 passes planned1.05 maximum; userCPU +6.0 percent reported separately"
+}

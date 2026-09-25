@@ -1,0 +1,21 @@
+{
+  "classification_changes": {
+    "session_mode_interactive->session_mode_subagent": 40,
+    "session_mode_interactive->session_mode_unattended": 32,
+    "session_mode_unknown->session_mode_interactive": 1
+  },
+  "sources": {
+    "claude": {
+      "both_errors": 0,
+      "meta_rows_removed": 49,
+      "ok": 135,
+      "unexpected_differences": 0
+    },
+    "codex": {
+      "both_errors": 0,
+      "meta_rows_removed": 0,
+      "ok": 817,
+      "unexpected_differences": 0
+    }
+  }
+}

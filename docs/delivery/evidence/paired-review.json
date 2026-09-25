@@ -1,0 +1,99 @@
+{
+  "before": {
+    "runs": [
+      {
+        "wall": 5.05,
+        "user": 6.36,
+        "sys": 4.81,
+        "rss": 568475648
+      },
+      {
+        "wall": 2.64,
+        "user": 6.38,
+        "sys": 2.98,
+        "rss": 561840128
+      },
+      {
+        "wall": 2.28,
+        "user": 6.31,
+        "sys": 2.61,
+        "rss": 556941312
+      },
+      {
+        "wall": 2.38,
+        "user": 6.22,
+        "sys": 2.65,
+        "rss": 554336256
+      },
+      {
+        "wall": 2.02,
+        "user": 6.35,
+        "sys": 2.39,
+        "rss": 629817344
+      }
+    ],
+    "sha256": "38ea365658e6b8a4bbeda8059a06f84b082a6a9bc96c74d5e70f327b6af16275",
+    "median_wall": 2.38,
+    "median_user": 6.35,
+    "median_sys": 2.65,
+    "median_rss": 561840128,
+    "median_cpu_total": 8.92
+  },
+  "after-review": {
+    "runs": [
+      {
+        "wall": 2.77,
+        "user": 6.78,
+        "sys": 3.11,
+        "rss": 566476800
+      },
+      {
+        "wall": 2.36,
+        "user": 6.7,
+        "sys": 2.59,
+        "rss": 557383680
+      },
+      {
+        "wall": 2.35,
+        "user": 6.73,
+        "sys": 2.74,
+        "rss": 563036160
+      },
+      {
+        "wall": 2.44,
+        "user": 6.65,
+        "sys": 2.49,
+        "rss": 561692672
+      },
+      {
+        "wall": 2.06,
+        "user": 6.83,
+        "sys": 2.33,
+        "rss": 651378688
+      }
+    ],
+    "sha256": "539ec9366b5818b85e1cfd1eece0ae1ba882a8fe1371970dcdaf79bd43647745",
+    "median_wall": 2.36,
+    "median_user": 6.73,
+    "median_sys": 2.59,
+    "median_rss": 563036160,
+    "median_cpu_total": 9.29
+  },
+  "conditions": {
+    "application_cache": "disabled",
+    "os_page_cache": "not evicted",
+    "order": "before then after-review, five pairs",
+    "source": "identical frozen Codex files",
+    "prices": "upstream updated; no cost equality claim",
+    "hardware": "Apple M1 Pro, 8 logical CPUs, 32 GiB RAM",
+    "background": "No agent builds/tests; user game, WindowServer, Chrome and other desktop apps active",
+    "filesystem_cache": "not evicted; first old run colder than subsequent runs",
+    "unmeasured": "idle-host latency, power use, other platforms"
+  },
+  "gate": {
+    "metric": "median wall time, application cache disabled",
+    "maximum_ratio": 1.05,
+    "actual_ratio": 0.9915966386554622,
+    "passed": true
+  }
+}

@@ -184,3 +184,96 @@ and CLI tests reject provider/source/legacy-local flags.76140ff restores the
 Remem-only user-facing contract and documents only the real public
 refine_core::session parser/discovery APIs. No runtime flag or behavior was added.
 Earlier notes about default auto/local CLI behavior are superseded by this check.
+
+## Latest integration checkpoints
+
+- ccstats PR190 at22ffd88:1002tests/40suites, desktop15, Web36, native IPC1
+  and strict clippy pass. Remote CI36165708904 has Check/Coverage/macOS desktop/
+  Windows desktop/Windows all green. Local default and --ci DMG packaging both
+  hit Finder AppleEvent timeout(-1712); task disk images were ejected/removed.
+  Native IPC was separately verified against the built executable. Actual release
+  packaging remains a gate, not inferred from the debug checks.
+- PR190 review then found colliding Claude slugs and rejection of source aliases.
+  Owner has written native-cwd-first/tolerant-identity and canonical-source fixes
+  plus11focused cases; verification underway. Threads PRRT_kwDORG8qCM6mF362
+  and PRRT_kwDORG8qCM6mF368 remain open until verified push.
+- Looper50cf599, PR1:Go premerge plus real scoped debug CLI and3Node renderer
+  tests pass. Old duplicate parsers/prices removed; declared changes include
+  usage-event dates, cache correction and archived Codex inclusion. Final release
+  binary linkage/performance remain pending.
+- Refine PR229 at76140ff:all10remote checks green, original docs review fixed
+  and resolved. Ccp PR11green. Archive PR29has no CI workflow;local29tests and
+  actual-registry locked check passed.
+- Remem spec PR1089 atdbf45024 is open. Required1.97 toolchain installed,
+  original unset rustup default restored; missing benchmark-producing commit
+  fetched. Full local spec preflight all non-production-test gates passed;library
+  4000passed/2failed/1ignored because our temporary runner wrongly shared
+  REMEM_CONFIG between isolated tests. Same binary controlled A/B reproduced
+  both failures with the shared enabled config and both passed when unset.
+  Local preflight exit1 is reported honestly;fresh remote CI is the spec full
+  suite truth, not a claimed local pass. Runtime full preflight will also cover
+  all original tests with corrected isolation.
+- Remem runtime b6fe0016 committed after128focused tests (8raw/42ingest/23git/
+  28archive/25reconcile/2CLIroots),1.97fmt/check and metadata gates. Registry
+  dependency checksum matches published0.2.0;fullpreflight is running under
+  isolated HOME/data with all REMEM_* and host root overrides cleared first.
+- Global delivery Cargo patches are now removed; config only sets target-dir.
+  Quotabar/keepline require explicit ccstats path config if tested before0.9.0
+  publication, then real registry locks. No consumer merges/releases performed.
+- Shared incremental cache grew to19GiB;with no Cargo lock/rustc active only
+  that task-owned cache was removed, restoring free disk from11to25GiB. Test
+  binaries/dependencies/fingerprints/source/privatebaseline remain.
+
+Next:finish ccstats review fixes/CI;finish remem fullpreflight and issue/PR
+workflow;final keepline and quotabar registry verification after ccstats release;
+release-profile real CLI/performance;explicit merge/release approval under threads
+and QuotaBar release policy;complete release chain;remove private baseline copies.
+
+## Final pre-merge verification
+
+ccstats666b9ec fixes both GitHub reviews: native cwd takes precedence over lossy
+Claude directory slugs even with invalid timestamp/usage, and aliases/case use
+canonical get_source resolution.11focused CLI tests, clippy/fmt and independent
+new-binary probes passed; both threads resolved. Latest5remote CIchecks passed.
+Release0.9 CLI built, synthetic Go integration passed. Final five-pair report is
+in evidence/paired-review.json:wall2.38->2.36s (0.992, original elapsed-time gate
+<=1.05 passed), userCPU6.35->6.73(+6.0%), totalCPUmedian8.92->9.29(+4.1%),
+RSS535.81->536.95MiB. No agent tests/builds active; user desktop/game active.
+Do not claim an unconditional speedup.
+
+QuotaBar final SDK verification62af678:132passed/5ignored,lockedcheck/fmt/version
+gate;core dependency registry0.2,SDK candidate666b9ec via explicit CLIpatch only.
+Keepline157c309:19Rusttests/lockedcheck;Bun516 and frontend gates unchanged.
+Independent read-only reviews of both SDK integrations found no blocker.
+DraftPRs188/116 intentionally await ccstats registry publication.
+
+Private baseline directory was removed in full after comparisons:transcripts,
+detailed reports,private stderr,cache/config/data. Anonymous counts/timings and
+public-source binaries remain under task evidence;summaryJSON copied here.
+Original user transcripts and dirty worktree content were not changed.
+
+Remem production runtime run:4078passed/6ignored over17unfiltered result blocks
+(lib4008passed/0failed/1ignored). Final source fixture adjustment3523c3b2 changes
+only hardcoded inventory and an explicit missing-target negative case. Native
+CI36176826911 passed four targets and aggregate; all four20-run receipts bind
+3523 with clean source and tree de3ad30bce8295089fce764ddbe493ac1ed43e1f75739ce6900a165f5d6698fa.
+Evidence-only commitb214c87d does not change production input tree. Final eval
+gates exit0 with114metric deltas passing and ship_matrix command_passed,
+merge_ready,release_ready true. Other capability claims(default_on,cross-host,
+coding,public-claim)remain false;these are not expanded by this migration.
+SpecPR1089 now both remotechecks green;implementationissue1090 tracks runtime.
+
+One batch merge/release authorization question is pending with the user. Existing
+consumer repositories have not been merged or released without that approval.
+
+## Remem final local handoff
+
+Final head eb5fd714a40fe2b447b09b9bc1aa03ff7a7a890f is clean.128focused
+migration tests and4078production tests(6ignored)passed; final114eval metrics,
+publicclaims validator and3fixture tests passed. Four-platform20-run receipts
+bind source3523c3b2 and its de3ad30...tree; evidence/docs-only later commits do
+not alter that production-input tree. The original fullpreflight's one stale-
+evidence failure is retained in its original log and closed by explicit updated
+evidence/targeted reruns, not rewritten as an initially green full run.
+SpecPR1089 is CI-green; implementation issue1090 and stacked runtime PR track
+the remaining review/CI/merge/distribution gates.
