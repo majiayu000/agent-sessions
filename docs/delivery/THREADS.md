@@ -34,3 +34,16 @@ All six lanes spawned via collaboration.spawn_agent: /root/core, /root/remem, /r
 - Consumer remotes refreshed. ccstats origin/main advanced to 9274c1e (0.8.1 pricing repairs); looper lane owns integration before details API. life-looper origin/main advanced to 9815bc4 (changes outside cost scanner); same lane owns rebase. Other recorded consumer bases unchanged.
 - QuotaBar T4 Rust suite now 132 passed / 5 ignored after library title wording fix 2361ee7; pre-existing strict clippy warnings tracked separately.
 - Exact six authorized repositories became five consumer lanes by grouping refine then ccp, plus one shared API lane to prevent competing edits.
+
+## Remote delivery ledger
+
+- Core source3ae0828 published as agent-sessions0.2.0; CI36156978344 all six jobs passed. GitHub release v0.2.0 exists.
+- Refine PR229 at15677a8: implementation4c3793b plus minimal existing-baseline RustSec patch rustls0.23.45; refreshed CI pending.
+- Ccp PR11 at511be68: registry dependency, local and remote CI passed.
+- Archive PR29 at23bfdaa: registry dependency, local29tests and no-patch locked check passed; no remote CI workflow exists.
+- Remem feature issue1088; specdbf45024 fullpreflight using required1.97, separate isolated worktree. Runtime preflight follows.
+- QuotaBar396e29d adds candidate changelog after6412318 migration; registry ccstats gate still pending.
+- Keepline7fb4c7d waits final ccstats SDK window.
+- ccstats0a939c6 had997tests green; latest scoped details fixes pending Rust gates. Looper5a5e363 Go scope/coverage tests/premerge green, final real CLI gate pending.
+
+Current local Cargo scheduling is serialized: remem owns full spec/runtime preflight; then ccstats/desktop, keepline, final release CLI and paired throughput. Other lanes may run read-only/Go/Node checks. New native independent review collected concrete defects and fixes; no merge was performed.

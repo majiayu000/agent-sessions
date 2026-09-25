@@ -124,3 +124,63 @@ No duplicate migration or PR is required.
 Empty public agent-sessions repository created at the approved owner/name; source
 and registry publication remain pending final API and review gates. Remem feature
 issue1088 tracks spec-to-implementation delivery; no capability closure claimed.
+
+## Core release and independent review
+
+Independent review found and reproduced two projection defects: fast/general
+statistical timestamp validation drift, and excluded Claude progress tool content
+being validated. Fixed in587571a with exact differential tests. Missing cumulative
+Codex totals now have stable diagnostic tag41b541f without fabricated usage.
+Windows CI exposed Git autocrlf changing byte fixtures;13b12c2 fixes checkout
+attributes, with51 fixture bytes validated under autocrlf=true.
+
+Final release head3ae0828:66 tests including doctest; fmt/check/strictclippy;
+ASan fuzz and independent fix re-review passed. CI36156978344 passed Ubuntu
+MSRV1.88/stable, macOS stable, Windows stable, lint and fuzz.
+
+agent-sessions0.2.0 is now published to crates.io and GitHub Release v0.2.0.
+Crates.io API confirms not yanked and checksum
+741368addca6a3758a911dc5b0871df029863c67d2d2008788662586ed4748c3,
+identical to the verified110-file62,029-byte package. Parent local library patch
+removed; ccstats candidate patch remains pending its own release.
+
+## Consumer evidence since core publication
+
+- Remem raw/message projection:952 files,290572 records,33898 messages;
+  zero role/text/epoch differences. Approved origin classification differs and
+  is reported separately. Full isolated preflight still pending compile window.
+- Archive095eb20:29tests,fmt/check/strictclippy;952files/290572 complete encoded
+  records plus checkpoint/tail state exactly match pinned old collector. Harness
+  removed. Registry-lock23bfdaa;31 downloaded Rust sources byte-identical. Root
+  also checked metadata --locked --offline from outside patch ancestry successfully.
+- Refine4c3793b:654workspace tests,2ignored;108final focused tests;workspace
+  check/clippy/fmt and no-parent-patch locked check passed.135Claude+817Codex
+  real parity has zero unexpected differences;49isMeta removals and origin
+  corrections(interactive->subagent40,interactive->unattended32,unknown->interactive1)
+  are explicit. Existing sessions-only discovery range preserved.
+- Ccp:48tests passed before final registry run;real snapshot66session summaries
+  and72file UsageReport exactly match old implementation. Final commit pending.
+- Keepline7fb4c7d checkpoint:9history tests,Bun516tests/typecheck/build green;
+  final19Rust suite/check waits ccstats head. Existing whole-tree fmt drift documented.
+- ccstats0a939c6:997tests/40suites,strictclippy/fmt. Independent consumer review
+  then found details missing-Claude-timestamp diagnostics, unrelated-project errors
+  blocking scoped Looper reports, and Claude slug compatibility; owner fixing before
+  delivery. Root desktop version0.8.1 mismatch with0.9candidate also needs sync.
+- Life-looper70b4a91:Go fullsuite/vet and real debug CLI synthetic1.32USD fixture
+  passed. Scope/coverage fixes and final release CLI performance gate still pending.
+
+Independent read-only reviews of archive/ccp/remem/refine found no blocking
+regressions. A low-severity non-UTF8 refine fallback difference was corrected.
+No consumer merge or release claimed. Existing remem main CI triggers automatic
+release; final merge approval must cover that side effect. QuotaBar release requires
+human approval and its workflow only uploads build artifacts.
+
+## Refine public CLI correction
+
+GitHub review exposed a mistaken reachability inference in the first migration
+README update: internal Auto/Local branches do not imply a public CLI fallback.
+Commands::IngestSessions exposes no provider flag; handlers.rs fixes Remem mode,
+and CLI tests reject provider/source/legacy-local flags.76140ff restores the
+Remem-only user-facing contract and documents only the real public
+refine_core::session parser/discovery APIs. No runtime flag or behavior was added.
+Earlier notes about default auto/local CLI behavior are superseded by this check.
