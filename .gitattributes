@@ -1,0 +1,2 @@
+# Golden snapshots assert physical byte offsets; preserve fixture bytes on checkout.
+tests/fixtures/** -text

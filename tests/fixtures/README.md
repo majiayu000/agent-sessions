@@ -13,3 +13,7 @@ The golden test compares full events, physical provenance and final diagnostics.
 Initial snapshots were reviewed alongside hand-authored contract assertions.
 To intentionally refresh: UPDATE_GOLDEN=1 cargo test --test golden. Review every
 changed value before accepting; do not refresh to hide a failing regression.
+
+Git attributes disable line-ending conversion for this directory. Golden snapshots
+assert physical byte offsets, so checkout must preserve the authored fixture bytes
+on Windows as well as Unix. CRLF behavior is covered by explicit reader tests.
