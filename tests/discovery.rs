@@ -63,7 +63,9 @@ fn missing_roots_are_normal_but_wrong_type_is_visible() {
     );
     fs::create_dir_all(tmp.path().join(".claude")).unwrap();
     fs::write(tmp.path().join(".claude/projects"), "not a directory").unwrap();
-    assert_eq!(discover(&roots, &DiscoverFilter::default()).errors.len(), 1);
+    let result = discover(&roots, &DiscoverFilter::default());
+    assert_eq!(result.errors.len(), 1);
+    assert_eq!(result.errors[0].operation, DiscoverOperation::ReadDirectory);
 }
 
 #[cfg(unix)]

@@ -196,6 +196,10 @@ fn explicit_directory_preserves_root_and_reports_absence() {
         &DiscoverFilter::default(),
     );
     assert_eq!(result.errors.len(), 1);
+    assert_eq!(
+        result.errors[0].operation,
+        DiscoverOperation::DirectoryMetadata
+    );
 }
 
 #[test]

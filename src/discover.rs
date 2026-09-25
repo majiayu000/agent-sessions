@@ -1,4 +1,4 @@
-use crate::{Agent, DiscoverError, FileKind, Roots};
+use crate::{Agent, DiscoverError, DiscoverOperation, FileKind, Roots};
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -124,7 +124,11 @@ fn scan_directory(
             Ok(m) => m,
             Err(e) if optional && e.kind() == io::ErrorKind::NotFound => continue,
             Err(source) => {
-                result.errors.push(DiscoverError { path: dir, source });
+                result.errors.push(DiscoverError {
+                    path: dir,
+                    source,
+                    operation: DiscoverOperation::DirectoryMetadata,
+                });
                 continue;
             }
         };
@@ -134,7 +138,11 @@ fn scan_directory(
         let entries = match fs::read_dir(&dir) {
             Ok(entries) => entries,
             Err(source) => {
-                result.errors.push(DiscoverError { path: dir, source });
+                result.errors.push(DiscoverError {
+                    path: dir,
+                    source,
+                    operation: DiscoverOperation::ReadDirectory,
+                });
                 continue;
             }
         };
@@ -145,6 +153,7 @@ fn scan_directory(
                     result.errors.push(DiscoverError {
                         path: dir.clone(),
                         source,
+                        operation: DiscoverOperation::ReadEntry,
                     });
                     continue;
                 }
@@ -153,7 +162,11 @@ fn scan_directory(
             let ty = match entry.file_type() {
                 Ok(ty) => ty,
                 Err(source) => {
-                    result.errors.push(DiscoverError { path, source });
+                    result.errors.push(DiscoverError {
+                        path,
+                        source,
+                        operation: DiscoverOperation::FileType,
+                    });
                     continue;
                 }
             };
@@ -170,7 +183,11 @@ fn scan_directory(
                         result.files.push(file)
                     }
                     Ok(_) => {}
-                    Err(source) => result.errors.push(DiscoverError { path, source }),
+                    Err(source) => result.errors.push(DiscoverError {
+                        path,
+                        source,
+                        operation: DiscoverOperation::InspectFile,
+                    }),
                 }
             }
         }

@@ -1,8 +1,21 @@
 use serde::Serialize;
 use std::{fmt, io, path::PathBuf};
 
+/// The failed discovery operation. `InspectFile` identifies a candidate already
+/// observed as a regular JSONL file, so consumers can apply their metadata policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum DiscoverOperation {
+    DirectoryMetadata,
+    ReadDirectory,
+    ReadEntry,
+    FileType,
+    InspectFile,
+}
+
 #[derive(Debug)]
 pub struct DiscoverError {
+    pub operation: DiscoverOperation,
     pub path: PathBuf,
     pub source: io::Error,
 }
