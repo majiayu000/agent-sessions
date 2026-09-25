@@ -18,7 +18,17 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "Assistant",
-            "text": "one\ntwo"
+            "text": "one\ntwo",
+            "text_segments": [
+              {
+                "end": 3,
+                "start": 0
+              },
+              {
+                "end": 7,
+                "start": 4
+              }
+            ]
           }
         }
       }

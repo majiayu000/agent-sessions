@@ -19,3 +19,13 @@ The fixflow supplemental reference files were not present in the installed skill
 package; its main workflow is sufficient and is followed directly.
 
 No consumer code changed yet. Production data remains read-only.
+
+## T1 completed
+
+Implemented local 0.2.0: exact raw framing/resume; explicit history units and
+lenient legacy field policy; native title indices; original first-text block
+segments. Synthetic golden snapshots updated only for the added segment ranges.
+Validation: Rust 1.88 fmt/check, 46 integration tests, 1 rustdoc example, clippy
+with warnings denied, and a 60-second AddressSanitizer fuzz run including raw and
+history readers all passed. Logs: /tmp/agent-sessions-t1-tests.log and
+/tmp/agent-sessions-t1-fuzz.log. No consumer migrations included in this commit.

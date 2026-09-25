@@ -18,7 +18,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "User",
-            "text": "same"
+            "text": "same",
+            "text_segments": [
+              {
+                "end": 4,
+                "start": 0
+              }
+            ]
           }
         }
       }
@@ -41,7 +47,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "User",
-            "text": "same"
+            "text": "same",
+            "text_segments": [
+              {
+                "end": 4,
+                "start": 0
+              }
+            ]
           }
         }
       }

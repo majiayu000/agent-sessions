@@ -45,7 +45,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "Assistant",
-            "text": "ok"
+            "text": "ok",
+            "text_segments": [
+              {
+                "end": 2,
+                "start": 0
+              }
+            ]
           }
         }
       }

@@ -2,13 +2,13 @@ use super::{ReadOptions, ReadSummary};
 use crate::StreamError;
 use std::io::BufRead;
 
-pub(super) struct Record {
+pub(crate) struct Record {
     pub bytes: Vec<u8>,
     pub too_long: bool,
     pub newline: bool,
 }
 
-pub(super) fn read_record<R: BufRead>(
+pub(crate) fn read_record<R: BufRead>(
     reader: &mut R,
     opts: &ReadOptions,
     summary: &mut ReadSummary,

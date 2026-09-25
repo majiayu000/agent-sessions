@@ -18,7 +18,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "User",
-            "text": "question"
+            "text": "question",
+            "text_segments": [
+              {
+                "end": 8,
+                "start": 0
+              }
+            ]
           }
         }
       }
@@ -41,7 +47,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "Assistant",
-            "text": " answer "
+            "text": " answer ",
+            "text_segments": [
+              {
+                "end": 8,
+                "start": 0
+              }
+            ]
           }
         }
       }
@@ -64,7 +76,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "Developer",
-            "text": "policy"
+            "text": "policy",
+            "text_segments": [
+              {
+                "end": 6,
+                "start": 0
+              }
+            ]
           }
         }
       }

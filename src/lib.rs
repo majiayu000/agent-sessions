@@ -9,19 +9,25 @@ mod codex;
 mod discover;
 mod error;
 mod event;
+mod history;
 mod meta;
 mod parser;
+mod raw;
 mod reader;
 mod roots;
+mod titles;
 mod tokens;
 
 pub use agent::*;
 pub use discover::*;
 pub use error::*;
 pub use event::*;
+pub use history::*;
 pub use meta::*;
+pub use raw::*;
 pub use reader::*;
 pub use roots::*;
+pub use titles::*;
 pub use tokens::*;
 
 /// Package version, available for consumer cache keys.

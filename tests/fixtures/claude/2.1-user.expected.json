@@ -45,7 +45,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "User",
-            "text": "  hello 世界  "
+            "text": "  hello 世界  ",
+            "text_segments": [
+              {
+                "end": 16,
+                "start": 0
+              }
+            ]
           }
         }
       }

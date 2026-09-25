@@ -18,7 +18,8 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "Assistant",
-            "text": ""
+            "text": "",
+            "text_segments": []
           }
         }
       }
@@ -66,7 +67,8 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "User",
-            "text": ""
+            "text": "",
+            "text_segments": []
           }
         }
       }

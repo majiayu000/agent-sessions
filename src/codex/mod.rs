@@ -1,7 +1,7 @@
 mod origin;
 mod tools;
 mod usage;
-use crate::parser::{Parsed, State, required, string, text};
+use crate::parser::{Parsed, State, required, string, text_projection};
 use crate::{CodexUsageMode, Event, EventKinds, LineErrorKind, Message, MetaUpdate, Origin, Role};
 use serde_json::Value;
 
@@ -71,12 +71,13 @@ pub(crate) fn parse(
                     let c = payload
                         .get("content")
                         .ok_or(LineErrorKind::MissingField("content"))?;
-                    let body = text(c, p)?;
+                    let (body, text_segments) = text_projection(c, p)?;
                     p.emit(
                         1,
                         Event::Message(Message {
                             role,
                             text: body,
+                            text_segments,
                             is_meta: false,
                             is_sidechain: false,
                             parent_id: None,

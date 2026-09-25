@@ -68,8 +68,14 @@ pub(crate) fn timestamp(v: &Value) -> Result<Option<DateTime<Utc>>, LineErrorKin
         .ok_or(LineErrorKind::InvalidField("timestamp".into()))
 }
 pub(crate) fn text(v: &Value, parsed: &mut Parsed) -> Result<String, LineErrorKind> {
+    text_projection(v, parsed).map(|(text, _)| text)
+}
+pub(crate) fn text_projection(
+    v: &Value,
+    parsed: &mut Parsed,
+) -> Result<(String, Vec<std::ops::Range<usize>>), LineErrorKind> {
     if let Some(s) = v.as_str() {
-        return Ok(s.to_owned());
+        return Ok((s.to_owned(), std::iter::once(0..s.len()).collect()));
     }
     let blocks = v
         .as_array()
@@ -84,7 +90,13 @@ pub(crate) fn text(v: &Value, parsed: &mut Parsed) -> Result<String, LineErrorKi
             other => parsed.unknown.push(format!("content:{other}")),
         }
     }
-    Ok(parts.join("\n"))
+    let mut segments = Vec::new();
+    let mut offset = 0;
+    for part in &parts {
+        segments.push(offset..offset + part.len());
+        offset += part.len() + 1;
+    }
+    Ok((parts.join("\n"), segments))
 }
 pub(crate) fn parse(
     agent: Agent,

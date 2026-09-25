@@ -1,6 +1,6 @@
 mod tools;
 mod usage;
-use crate::parser::{Parsed, State, flag, required, string, text};
+use crate::parser::{Parsed, State, flag, required, string, text_projection};
 use crate::{Event, EventKinds, LineErrorKind, Message, MetaUpdate, Role};
 use serde_json::Value;
 
@@ -43,7 +43,7 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
                 let c = m
                     .get("content")
                     .ok_or(LineErrorKind::MissingField("content"))?;
-                let body = text(c, p)?;
+                let (body, text_segments) = text_projection(c, p)?;
                 let is_meta = flag(
                     v.get("isMeta")
                         .or_else(|| v.get("is_meta"))
@@ -60,6 +60,7 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
                             Role::Assistant
                         },
                         text: body,
+                        text_segments,
                         is_meta,
                         is_sidechain: flag(v.get("isSidechain"), "isSidechain")?,
                         parent_id: string(v, "parentUuid"),
@@ -92,12 +93,13 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
         }
         "system" if p.wants(EventKinds::MESSAGE) => {
             if let Some(c) = v.pointer("/message/content").or_else(|| v.get("content")) {
-                let body = text(c, p)?;
+                let (body, text_segments) = text_projection(c, p)?;
                 p.emit(
                     1,
                     Event::Message(Message {
                         role: Role::System,
                         text: body,
+                        text_segments,
                         is_meta: false,
                         is_sidechain: false,
                         parent_id: None,

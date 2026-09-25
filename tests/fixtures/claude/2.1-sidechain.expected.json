@@ -18,7 +18,13 @@
             "is_sidechain": true,
             "parent_id": "parent-fixture",
             "role": "Assistant",
-            "text": "child"
+            "text": "child",
+            "text_segments": [
+              {
+                "end": 5,
+                "start": 0
+              }
+            ]
           }
         }
       }

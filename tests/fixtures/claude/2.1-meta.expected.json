@@ -18,7 +18,13 @@
             "is_sidechain": false,
             "parent_id": null,
             "role": "User",
-            "text": "context"
+            "text": "context",
+            "text_segments": [
+              {
+                "end": 7,
+                "start": 0
+              }
+            ]
           }
         }
       }

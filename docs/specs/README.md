@@ -7,3 +7,5 @@
 
 The independent library is usable through a local Cargo path dependency.
 Nothing here claims that ccstats, remem or refine has switched dependencies.
+
+* [Ecosystem contract](ecosystem/PRODUCT.md): raw framing, history, title indices and first-block previews in local 0.2.0.

@@ -49,9 +49,16 @@ pub struct MetaUpdate {
 pub struct Message {
     pub role: Role,
     pub text: String,
+    pub text_segments: Vec<std::ops::Range<usize>>,
     pub is_meta: bool,
     pub is_sidechain: bool,
     pub parent_id: Option<String>,
+}
+impl Message {
+    /// Original first text block, including an empty first block.
+    pub fn first_text(&self) -> Option<&str> {
+        self.text.get(self.text_segments.first()?.clone())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

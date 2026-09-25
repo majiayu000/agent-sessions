@@ -1,7 +1,7 @@
 # agent-sessions
 
 Discover and stream Claude Code and Codex session files as typed Rust events.
-Local v0.1 implementation; not yet published or adopted by ccstats/remem/refine.
+Local v0.2 implementation; not yet published or adopted by ccstats/remem/refine.
 
 ```toml
 [dependencies]
@@ -141,3 +141,23 @@ See [product contract](docs/specs/v0.1/PRODUCT.md),
 [technical contract](docs/specs/v0.1/TECH.md) and
 [format notes](docs/formats.md). Existing PLAN.md is historical planning, not
 evidence of completed migrations or publication.
+
+## Ecosystem APIs (0.2)
+
+`read_raw_file` / `read_raw_from` preserve exact record bytes, delimiters and
+absolute offsets. They do not parse JSON, discard unknown records or validate
+UTF-8. Raw completion describes IO only; archive consumers retain their own
+commit/hash/partial-record policy. `RawReadOptions.start_offset` permits resuming
+from an established byte boundary. Generic sources must already be positioned.
+
+`read_history` / `read_history_from` read Claude and Codex history with explicit
+millisecond/second timestamp units. Entries are not unique sessions. Missing text
+and IDs remain None. Strict field checking is default; a consumer preserving old
+record-counting behavior may explicitly select `strict_fields: false`, which
+reports malformed optional fields in `HistoryEntry.invalid_fields`.
+
+`load_session_titles` reads only native title indices for requested IDs. It never
+uses message bodies as fallback titles. `Message::first_text()` preserves the
+first original text block; `text_segments` are UTF-8 byte ranges in joined text.
+A title-preview consumer may stop iteration early or use a bounded prefix source;
+that does not mean a complete snapshot was read.
