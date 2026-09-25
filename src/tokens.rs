@@ -1,3 +1,8 @@
+/// `ReadSummary::ignored_types` label for selected statistical token-count
+/// records with nonzero last usage but no cumulative total. No usage is emitted
+/// because an independent ledger cannot be inferred from that record.
+pub const CODEX_MISSING_TOTAL_USAGE: &str = "event_msg:token_count:missing_total";
+
 use crate::LineErrorKind;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

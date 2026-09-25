@@ -256,3 +256,53 @@ fn statistical_timestamp_field_precedence_matches_general_decoder() {
     assert!(events.is_empty());
     assert!(errors[0].contains("MissingField(\"timestamp\")"));
 }
+
+#[test]
+fn last_usage_without_total_is_observable_without_inventing_usage() {
+    for last in [
+        json!({"input_tokens":10}),
+        json!({"output_tokens":4}),
+        json!({"total_tokens":1}),
+        json!({"cache_creation":{"ephemeral_1h_input_tokens":2}}),
+    ] {
+        let row = json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count","info":{"last_token_usage":last}}});
+        let fast = statistics_outcome(&row, EventKinds::USAGE);
+        assert_eq!(
+            fast,
+            statistics_outcome(&row, EventKinds::USAGE.union(EventKinds::MESSAGE))
+        );
+        assert!(fast.0.is_empty());
+        assert!(fast.1.is_empty());
+        assert_eq!(fast.2["ignored_types"][CODEX_MISSING_TOTAL_USAGE], 1);
+        assert_eq!(fast.2["status"], "Complete");
+    }
+    for last in [json!({}), json!({"input_tokens":0}), json!(null)] {
+        let row = json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count","info":{"last_token_usage":last}}});
+        assert!(
+            statistics_outcome(&row, EventKinds::USAGE).2["ignored_types"]
+                .get(CODEX_MISSING_TOTAL_USAGE)
+                .is_none()
+        );
+    }
+    let row = json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":10}}}});
+    let mut strict = read_from(
+        Agent::Codex,
+        Cursor::new(row.to_string()),
+        &ReadOptions::default(),
+    )
+    .unwrap();
+    assert!(strict.next().unwrap().is_err());
+    let data = format!("{row}\n{row}\n");
+    let mut reader = read_from(
+        Agent::Codex,
+        Cursor::new(data),
+        &ReadOptions {
+            accounting: AccountingPolicy::UsageStatistics,
+            include: EventKinds::USAGE,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(reader.next().is_none());
+    assert_eq!(reader.finish().ignored_types[CODEX_MISSING_TOTAL_USAGE], 2);
+}

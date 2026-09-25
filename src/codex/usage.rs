@@ -7,6 +7,34 @@ use crate::{
 };
 use serde_json::Value;
 
+pub(super) fn has_unaccounted_last(p: &Value) -> bool {
+    let Some(info) = p.get("info") else {
+        return false;
+    };
+    if info.get("total_token_usage").is_some_and(|v| !v.is_null()) {
+        return false;
+    }
+    let Some(last) = info.get("last_token_usage") else {
+        return false;
+    };
+    [
+        "input_tokens",
+        "output_tokens",
+        "cached_input_tokens",
+        "cache_read_input_tokens",
+        "cache_write_input_tokens",
+        "reasoning_output_tokens",
+        "total_tokens",
+    ]
+    .into_iter()
+    .filter_map(|field| last.get(field).and_then(Value::as_u64))
+    .chain(
+        last.pointer("/cache_creation/ephemeral_1h_input_tokens")
+            .and_then(Value::as_u64),
+    )
+    .any(|n| n > 0)
+}
+
 pub(super) fn token_count(
     p: &Value,
     state: &mut State,

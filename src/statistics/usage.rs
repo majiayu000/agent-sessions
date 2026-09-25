@@ -42,6 +42,23 @@ struct Counters {
     cache_creation: Option<CacheCreation>,
 }
 impl Counters {
+    fn has_nonzero(&self) -> bool {
+        [
+            self.input_tokens,
+            self.output_tokens,
+            self.cached_input_tokens,
+            self.cache_read_input_tokens,
+            self.cache_write_input_tokens,
+            self.reasoning_output_tokens,
+            self.total_tokens,
+            self.cache_creation
+                .as_ref()
+                .and_then(|c| c.ephemeral_1h_input_tokens),
+        ]
+        .into_iter()
+        .flatten()
+        .any(|n| n > 0)
+    }
     fn counts(self) -> Result<(TokenCounts, Vec<UsageAdjustment>), DecodeError> {
         let counts = TokenCounts {
             input: self.input_tokens,
@@ -101,7 +118,14 @@ pub(super) fn decode(
         text(value, field)?;
     }
     let Some(total) = info.total_token_usage else {
-        return Ok(Parsed::default());
+        return Ok(Parsed {
+            ignored_one: info
+                .last_token_usage
+                .as_ref()
+                .filter(|last| last.has_nonzero())
+                .map(|_| (true, Cow::Borrowed(crate::CODEX_MISSING_TOTAL_USAGE))),
+            ..Default::default()
+        });
     };
     let (total, adjustments) = total.counts()?;
     let last = info.last_token_usage.map(Counters::counts).transpose()?;

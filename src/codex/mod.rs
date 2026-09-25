@@ -122,6 +122,11 @@ pub(crate) fn parse(
                     {
                         return Err(LineErrorKind::MissingField("timestamp"));
                     }
+                    if p.accounting == crate::AccountingPolicy::UsageStatistics
+                        && usage::has_unaccounted_last(payload)
+                    {
+                        p.ignored.push(crate::CODEX_MISSING_TOTAL_USAGE.into());
+                    }
                     let observed_model = model(payload);
                     if let Some(mut u) = usage::token_count(payload, state, p.accounting)? {
                         usage::apply_model(&mut u, state, observed_model);

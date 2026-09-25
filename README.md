@@ -200,3 +200,8 @@ stream readers retain strict validation by default.
 History entries also expose `timestamp` in native units even outside the datetime
 range. `HistoryReader::next_line_no()` identifies a failed physical I/O line,
 including preceding blank lines. Valid UTF-8 whitespace-only records are skipped.
+
+Statistical readers count nonzero Codex last-usage records lacking cumulative
+totals under `ReadSummary::ignored_types[CODEX_MISSING_TOTAL_USAGE]`. This is an
+observable accounting gap; no guessed usage is emitted and stream error semantics
+remain unchanged. Consumers requiring complete cost attribution should reject it.
