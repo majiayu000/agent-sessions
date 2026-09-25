@@ -1,4 +1,4 @@
-mod origin;
+pub(crate) mod origin;
 mod tools;
 pub(crate) mod usage;
 use crate::parser::{Parsed, State, required, string, text_projection};

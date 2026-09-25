@@ -5,8 +5,9 @@ edition = "2024"
 rust-version = "1.88"
 description = "Bounded, provenance-preserving Claude Code and Codex session readers"
 license = "MIT"
+repository = "https://github.com/majiayu000/agent-sessions"
 readme = "README.md"
-exclude = ["PLAN.md", "fuzz/**", ".github/**"]
+exclude = ["PLAN.md", "fuzz/**", ".github/**", "docs/delivery/**", "docs/research/**"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

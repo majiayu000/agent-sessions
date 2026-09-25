@@ -90,70 +90,95 @@ pub fn classify(path: &Path, roots: &Roots) -> io::Result<Option<SessionFile>> {
 pub fn discover(roots: &Roots, filter: &DiscoverFilter) -> Discovery {
     let mut result = Discovery::default();
     for (agent, root) in scan_roots(roots) {
-        if !filter.agents.is_empty() && !filter.agents.contains(&agent) {
-            continue;
-        }
-        let mut pending = vec![(root, true)];
-        while let Some((dir, optional)) = pending.pop() {
-            let metadata = match fs::symlink_metadata(&dir) {
-                Ok(m) => m,
-                Err(e) if optional && e.kind() == io::ErrorKind::NotFound => continue,
-                Err(source) => {
-                    result.errors.push(DiscoverError { path: dir, source });
-                    continue;
-                }
-            };
-            if metadata.is_symlink() {
+        scan_directory(agent, &root, filter, true, &mut result);
+    }
+    sort_files(&mut result);
+    result
+}
+
+/// Scan an explicitly selected directory recursively. Unlike configured default
+/// roots, a missing directory is reported in `errors`. Symlinks are not followed.
+/// Subagent exclusion applies to descendant directories named `subagents`;
+/// an explicitly selected root remains eligible regardless of its ancestors.
+pub fn discover_directory(agent: Agent, root: &Path, filter: &DiscoverFilter) -> Discovery {
+    let mut result = Discovery::default();
+    scan_directory(agent, root, filter, false, &mut result);
+    sort_files(&mut result);
+    result
+}
+
+fn scan_directory(
+    agent: Agent,
+    root: &Path,
+    filter: &DiscoverFilter,
+    optional: bool,
+    result: &mut Discovery,
+) {
+    if !filter.agents.is_empty() && !filter.agents.contains(&agent) {
+        return;
+    }
+    let skip_tagged_subagents = optional && !filter.include_subagents;
+    let mut pending = vec![(root.to_path_buf(), optional)];
+    while let Some((dir, optional)) = pending.pop() {
+        let metadata = match fs::symlink_metadata(&dir) {
+            Ok(m) => m,
+            Err(e) if optional && e.kind() == io::ErrorKind::NotFound => continue,
+            Err(source) => {
+                result.errors.push(DiscoverError { path: dir, source });
                 continue;
             }
-            let entries = match fs::read_dir(&dir) {
-                Ok(entries) => entries,
+        };
+        if metadata.is_symlink() {
+            continue;
+        }
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(source) => {
+                result.errors.push(DiscoverError { path: dir, source });
+                continue;
+            }
+        };
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
                 Err(source) => {
-                    result.errors.push(DiscoverError { path: dir, source });
+                    result.errors.push(DiscoverError {
+                        path: dir.clone(),
+                        source,
+                    });
                     continue;
                 }
             };
-            for entry in entries {
-                let entry = match entry {
-                    Ok(e) => e,
-                    Err(source) => {
-                        result.errors.push(DiscoverError {
-                            path: dir.clone(),
-                            source,
-                        });
-                        continue;
+            let path = entry.path();
+            let ty = match entry.file_type() {
+                Ok(ty) => ty,
+                Err(source) => {
+                    result.errors.push(DiscoverError { path, source });
+                    continue;
+                }
+            };
+            if ty.is_dir() {
+                if filter.include_subagents || entry.file_name() != "subagents" {
+                    pending.push((path, false));
+                }
+            } else if ty.is_file() && path.extension().is_some_and(|e| e == "jsonl") {
+                match SessionFile::inspect(agent, &path) {
+                    Ok(file)
+                        if filter.modified_after.is_none_or(|t| file.modified >= t)
+                            && (!skip_tagged_subagents || file.kind == FileKind::Main) =>
+                    {
+                        result.files.push(file)
                     }
-                };
-                let path = entry.path();
-                let ty = match entry.file_type() {
-                    Ok(ty) => ty,
-                    Err(source) => {
-                        result.errors.push(DiscoverError { path, source });
-                        continue;
-                    }
-                };
-                if ty.is_dir() {
-                    if filter.include_subagents || entry.file_name() != "subagents" {
-                        pending.push((path, false));
-                    }
-                } else if ty.is_file() && path.extension().is_some_and(|e| e == "jsonl") {
-                    match SessionFile::inspect(agent, &path) {
-                        Ok(file)
-                            if filter.modified_after.is_none_or(|t| file.modified >= t)
-                                && (filter.include_subagents || file.kind == FileKind::Main) =>
-                        {
-                            result.files.push(file)
-                        }
-                        Ok(_) => {}
-                        Err(source) => result.errors.push(DiscoverError { path, source }),
-                    }
+                    Ok(_) => {}
+                    Err(source) => result.errors.push(DiscoverError { path, source }),
                 }
             }
         }
     }
+}
+fn sort_files(result: &mut Discovery) {
     result.files.sort_by(|a, b| a.path.cmp(&b.path));
     result
         .files
         .dedup_by(|a, b| a.path == b.path && a.agent == b.agent);
-    result
 }

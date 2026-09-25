@@ -4,6 +4,17 @@ use libfuzzer_sys::fuzz_target;
 use std::io::{BufReader,Cursor};
 
 fuzz_target!(|data: &[u8]| {
+    if let Ok(v) = serde_json::from_slice::<serde_json::Value>(data) {
+        let _ = project_conversation(&v);
+        let _ = tolerant_timestamp_epoch(&v);
+        let _ = project_codex_function(&v);
+        for agent in [Agent::ClaudeCode, Agent::Codex] {
+            let projected = project_transcript(agent, &v);
+            if let Some(message) = projected.message {
+                for range in message.text_segments { assert!(message.text.get(range).is_some()); }
+            }
+        }
+    }
     let raw_opts=RawReadOptions {max_read_bytes:Some(65536),max_line_bytes:Some(8192),..Default::default()};
     let mut raw=read_raw_from(Cursor::new(data),&raw_opts).unwrap();
     for _ in raw.by_ref() {}

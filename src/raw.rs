@@ -155,6 +155,11 @@ impl<R: BufRead> Iterator for RawReader<R> {
     }
 }
 impl<R: BufRead> RawReader<R> {
+    /// Next physical record number, including blank records. After an I/O error
+    /// this identifies the record whose read failed.
+    pub fn next_line_no(&self) -> u64 {
+        self.summary.lines.saturating_add(1)
+    }
     pub fn finish(self) -> RawSummary {
         RawSummary {
             status: self.summary.status,

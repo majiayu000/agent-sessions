@@ -1,7 +1,8 @@
 # agent-sessions
 
 Discover and stream Claude Code and Codex session files as typed Rust events.
-Local v0.2 implementation; not yet published or adopted by ccstats/remem/refine.
+Local v0.2 implementation, integrated with ccstats and QuotaBar in migration
+branches. Other consumer migrations are in progress. Registry publication is pending.
 
 ```toml
 [dependencies]
@@ -181,3 +182,21 @@ For Codex statistical projections, the reader borrows envelope fields and skips
 unrequested message/tool bodies before materializing values. Selected records use
 the same semantic decoder. Framing reuses its input buffer and uses vectorized
 newline search; raw consumers still own the exact bytes of each returned record.
+
+## Archival and transcript projections
+
+`discover_directory` shares the recursive walker for explicit archive roots and
+reports missing roots. It excludes descendant `subagents` directories when requested;
+explicit roots stay eligible even under a directory with that name.
+
+`project_conversation` and `tolerant_timestamp_epoch` retain archival consumers'
+lenient field policy, including empty messages and first-present timestamp priority.
+`project_codex_function` borrows native arguments/output without coercing JSON types.
+`project_transcript` supports legacy Codex envelopes, role-specific text blocks,
+source metadata and meta-message tags. These helpers operate on existing JSON values;
+callers still validate JSON syntax, incomplete tails and commit boundaries. Typed
+stream readers retain strict validation by default.
+
+History entries also expose `timestamp` in native units even outside the datetime
+range. `HistoryReader::next_line_no()` identifies a failed physical I/O line,
+including preceding blank lines. Valid UTF-8 whitespace-only records are skipped.

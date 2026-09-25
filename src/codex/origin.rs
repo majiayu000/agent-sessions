@@ -1,7 +1,7 @@
 use crate::Origin;
 use serde_json::Value;
 
-pub(super) fn classify(p: &Value) -> Origin {
+pub(crate) fn classify(p: &Value) -> Origin {
     if p.get("thread_source")
         .and_then(Value::as_str)
         .is_some_and(|s| s.eq_ignore_ascii_case("subagent"))

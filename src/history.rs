@@ -77,6 +77,10 @@ impl<R: BufRead> HistoryReader<R> {
             ended: false,
         }
     }
+    /// Next physical line, or the failed line after a stream I/O error.
+    pub fn next_line_no(&self) -> u64 {
+        self.raw.next_line_no()
+    }
     pub fn finish(self) -> ReadSummary {
         let raw = self.raw.finish();
         let status = if self.incomplete {
@@ -113,24 +117,29 @@ impl<R: BufRead> Iterator for HistoryReader<R> {
                     return Some(Err(e));
                 }
             };
-            if raw.bytes.iter().all(u8::is_ascii_whitespace) {
+            let utf8 = std::str::from_utf8(&raw.bytes);
+            if utf8.is_ok_and(|s| s.trim().is_empty()) {
                 if self.errors == 0 {
                     self.checkpoint = raw.byte_end;
                 }
                 continue;
             }
-            let entry = match serde_json::from_slice::<Value>(&raw.bytes) {
-                Ok(v) => history_entry(self.agent, &v, self.options.strict_fields),
-                Err(e)
-                    if !raw.terminated
-                        && e.is_eof()
-                        && self.options.tail == TailMode::AllowIncomplete =>
-                {
-                    self.ended = true;
-                    self.incomplete = true;
-                    return None;
+            let entry = if utf8.is_err() {
+                Err(LineErrorKind::InvalidUtf8)
+            } else {
+                match serde_json::from_slice::<Value>(&raw.bytes) {
+                    Ok(v) => history_entry(self.agent, &v, self.options.strict_fields),
+                    Err(e)
+                        if !raw.terminated
+                            && e.is_eof()
+                            && self.options.tail == TailMode::AllowIncomplete =>
+                    {
+                        self.ended = true;
+                        self.incomplete = true;
+                        return None;
+                    }
+                    Err(_) => Err(LineErrorKind::InvalidJson),
                 }
-                Err(_) => Err(LineErrorKind::InvalidJson),
             };
             return Some(match entry {
                 Ok(entry) => {

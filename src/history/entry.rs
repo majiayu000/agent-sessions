@@ -8,6 +8,9 @@ pub struct HistoryEntry {
     pub session_id: Option<String>,
     pub text: Option<String>,
     pub at: Option<DateTime<Utc>>,
+    /// Native integer timestamp: milliseconds for Claude, seconds for Codex.
+    /// Retained even when outside the representable datetime range.
+    pub timestamp: Option<i64>,
     pub project: Option<String>,
     pub invalid_fields: Vec<String>,
 }
@@ -51,6 +54,7 @@ pub fn history_entry(agent: Agent, v: &Value, strict: bool) -> Result<HistoryEnt
         session_id,
         text,
         at,
+        timestamp: v.get(time_key).and_then(Value::as_i64),
         project,
         invalid_fields,
     })
