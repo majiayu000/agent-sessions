@@ -15,6 +15,7 @@ pub enum DiscoverOperation {
 
 #[derive(Debug)]
 pub struct DiscoverError {
+    pub agent: crate::Agent,
     pub operation: DiscoverOperation,
     pub path: PathBuf,
     pub source: io::Error,

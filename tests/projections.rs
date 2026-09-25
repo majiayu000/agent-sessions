@@ -252,3 +252,28 @@ fn history_io_error_reports_physical_line_after_blank_records() {
     assert!(matches!(reader.next(), Some(Err(StreamError::Io(_)))));
     assert_eq!(reader.next_line_no(), 3);
 }
+
+#[test]
+fn codex_automation_fallback_preserves_explicit_source_priority() {
+    for (payload, expected) in [
+        (
+            json!({"thread_source":"automation","originator":"Codex Desktop"}),
+            Origin::Exec,
+        ),
+        (json!({"originator":"codex_work_desktop"}), Origin::Ide),
+        (
+            json!({"thread_source":"automation","source":{"subagent":{}}}),
+            Origin::Subagent,
+        ),
+        (
+            json!({"thread_source":"automation","source":"cli"}),
+            Origin::Interactive,
+        ),
+    ] {
+        let row = json!({"type":"session_meta","payload":payload});
+        assert_eq!(
+            project_transcript(Agent::Codex, &row).meta.origin,
+            Some(expected)
+        );
+    }
+}

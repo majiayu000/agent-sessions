@@ -125,6 +125,7 @@ fn scan_directory(
             Err(e) if optional && e.kind() == io::ErrorKind::NotFound => continue,
             Err(source) => {
                 result.errors.push(DiscoverError {
+                    agent,
                     path: dir,
                     source,
                     operation: DiscoverOperation::DirectoryMetadata,
@@ -139,6 +140,7 @@ fn scan_directory(
             Ok(entries) => entries,
             Err(source) => {
                 result.errors.push(DiscoverError {
+                    agent,
                     path: dir,
                     source,
                     operation: DiscoverOperation::ReadDirectory,
@@ -151,6 +153,7 @@ fn scan_directory(
                 Ok(e) => e,
                 Err(source) => {
                     result.errors.push(DiscoverError {
+                        agent,
                         path: dir.clone(),
                         source,
                         operation: DiscoverOperation::ReadEntry,
@@ -163,6 +166,7 @@ fn scan_directory(
                 Ok(ty) => ty,
                 Err(source) => {
                     result.errors.push(DiscoverError {
+                        agent,
                         path,
                         source,
                         operation: DiscoverOperation::FileType,
@@ -184,6 +188,7 @@ fn scan_directory(
                     }
                     Ok(_) => {}
                     Err(source) => result.errors.push(DiscoverError {
+                        agent,
                         path,
                         source,
                         operation: DiscoverOperation::InspectFile,

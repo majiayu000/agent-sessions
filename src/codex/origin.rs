@@ -31,10 +31,13 @@ pub(crate) fn classify(p: &Value) -> Origin {
             }
         }
     }
+    if p.get("thread_source").and_then(Value::as_str) == Some("automation") {
+        return Origin::Exec;
+    }
     match p.get("originator").and_then(Value::as_str) {
         Some("codex_exec" | "symphony-orchestrator") => Origin::Exec,
         Some("codex-tui" | "codex_cli_rs") => Origin::Interactive,
-        Some("Codex Desktop") => Origin::Ide,
+        Some("Codex Desktop" | "codex_work_desktop") => Origin::Ide,
         _ => Origin::Unknown,
     }
 }
