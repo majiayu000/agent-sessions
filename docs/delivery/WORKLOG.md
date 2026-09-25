@@ -101,3 +101,26 @@ Artifact: baseline/paired-native.json. Application cache disabled, OS cache reta
 Fresh ccstats full tests, fmt/check/clippy passed; shared strict/statistics tests
 and 60-second ASan fuzz (including selective statistics) passed. Consumer lockfiles
 still use local Cargo patch resolution pending the publication step.
+
+## Parallel consumer integration
+
+Explicit user authorization enabled six native lanes; ownership and live gates are
+in THREADS.md. Original user worktrees remain untouched. T4 QuotaBar committed
+6412318 after 132 Rust tests passed (5 ignored), fmt, check, warnings-only clippy,
+and prior 612 frontend tests/build/version checks. Strict clippy has five warnings
+in untouched existing modules; it is not represented as clean. Library title error
+wording compatibility fixed in 2361ee7.
+
+Remote refresh found ccstats main advanced to 9274c1e with 0.8.1 fallback-price
+repairs; migration branch rebased preserving those repairs (4439ec6 weekly SDK,
+28db1e0 parser migration). The previous real-data comparison still proves the
+parser change against its pinned baseline, not equal costs after new price tables.
+Life-looper baseline updated to 9815bc4 before its cost adapter work.
+
+The apparent extra Claude-Code-Monitor repository is the same GitHub repository
+as keepline: claude-hub redirects to majiayu000/keepline (repository id1113014090).
+No duplicate migration or PR is required.
+
+Empty public agent-sessions repository created at the approved owner/name; source
+and registry publication remain pending final API and review gates. Remem feature
+issue1088 tracks spec-to-implementation delivery; no capability closure claimed.

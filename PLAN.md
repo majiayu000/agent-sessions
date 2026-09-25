@@ -23,7 +23,7 @@
 | T1 | 本库：增量原始读取、history、标题索引、前缀消费 | 精确保真/偏移/截断、历史条目计数、索引来源、首个文本块测试；fmt/check/test/clippy/MSRV | 完成 bd21d7b |
 | T2 | ccstats：weekly-reserve 上游化 | 补丁逐项核对，额度估算与 SDK 回归通过；Grok 补丁已有实现不重复加入 | 完成 d3de1f3 |
 | T3 | ccstats：共享解析迁移 | Claude/Codex usage/tools/discovery 改用本库；保留标题索引契约；报表/缓存/冷启动基线对比，全量测试 | 本地实现/验证完成，待统一发布 |
-| T4 | quotabar：正式 SDK 接入 | 所需 SDK 已发布或明确可验证候选；去 vendor 后 Rust/TS 测试与界面数据契约通过 | 执行中 |
+| T4 | quotabar：正式 SDK 接入 | 所需 SDK 已发布或明确可验证候选；去 vendor 后 Rust/TS 测试与界面数据契约通过 | 本地完成 6412318；待 registry/上游发布 |
 | T5 | remem | 保留 raw 身份/完整性/过滤边界；spec 在先；focused/full tests、隔离导入 smoke、版本同步/preflight | 执行中 |
 | T6 | refine | 保留 remem 优先与本地 fallback；仅批准的 origin/isMeta/env 差异；workspace tests | 执行中 |
 | T7 | ccp | 保留 64 KiB 前缀预算、首个文本块、100 字符预览、排序/UUID 规则；cargo test | 执行中 |
