@@ -277,3 +277,43 @@ fn codex_automation_fallback_preserves_explicit_source_priority() {
         );
     }
 }
+
+#[test]
+fn progress_only_validates_selected_tool_content() {
+    let row = r#"{"type":"progress","data":{"message":{"message":{"content":42}}}}"#;
+    for include in [EventKinds::USAGE, EventKinds::MESSAGE, EventKinds::META] {
+        let mut reader = read_from(
+            Agent::ClaudeCode,
+            Cursor::new(row),
+            &ReadOptions {
+                include,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(reader.next().is_none());
+        let summary = reader.finish();
+        assert!(summary.is_complete());
+        assert_eq!(summary.last_complete_byte, row.len() as u64);
+    }
+    for include in [
+        EventKinds::TOOL_CALL,
+        EventKinds::TOOL_RESULT,
+        EventKinds::ALL,
+    ] {
+        let mut reader = read_from(
+            Agent::ClaudeCode,
+            Cursor::new(row),
+            &ReadOptions {
+                include,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            matches!(reader.next(),Some(Err(StreamError::Line {kind:LineErrorKind::InvalidField(ref field),..})) if field=="content")
+        );
+        assert!(reader.next().is_none());
+        assert_eq!(reader.finish().status, ReadStatus::CompleteWithErrors);
+    }
+}

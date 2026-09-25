@@ -65,17 +65,21 @@ pub(crate) fn timestamp(v: &Value) -> Result<Option<DateTime<Utc>>, LineErrorKin
     let Some(t) = t.filter(|t| !t.is_null()) else {
         return Ok(None);
     };
-    let date = t
-        .as_i64()
-        .or_else(|| t.as_str()?.trim().parse().ok())
+    timestamp_parts(t.as_i64(), t.as_str())
+        .map(Some)
+        .ok_or(LineErrorKind::InvalidField("timestamp".into()))
+}
+
+/// Shared conversion for Value and borrowed statistical headers.
+pub(crate) fn timestamp_parts(integer: Option<i64>, text: Option<&str>) -> Option<DateTime<Utc>> {
+    integer
+        .or_else(|| text?.trim().parse().ok())
         .and_then(|s| DateTime::from_timestamp(s, 0))
         .or_else(|| {
-            DateTime::parse_from_rfc3339(t.as_str()?.trim())
+            DateTime::parse_from_rfc3339(text?.trim())
                 .ok()
                 .map(|d| d.with_timezone(&Utc))
-        });
-    date.map(Some)
-        .ok_or(LineErrorKind::InvalidField("timestamp".into()))
+        })
 }
 pub(crate) fn text(v: &Value, parsed: &mut Parsed) -> Result<String, LineErrorKind> {
     text_projection(v, parsed).map(|(text, _)| text)

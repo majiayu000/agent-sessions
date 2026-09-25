@@ -26,6 +26,8 @@ pub(super) struct Header<'a> {
     pub(super) created_at_camel: Option<&'a RawValue>,
     #[serde(default, borrow, deserialize_with = "present")]
     pub(super) uuid: Option<&'a RawValue>,
+    #[serde(default, borrow, deserialize_with = "present")]
+    data: Option<&'a RawValue>,
     #[serde(borrow)]
     pub payload: Option<Payload<'a>>,
 }
@@ -59,6 +61,59 @@ impl Payload<'_> {
     }
 }
 impl Header<'_> {
+    pub(super) fn timestamp(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, super::DecodeError> {
+        let native = self
+            .timestamp
+            .or(self.created_at)
+            .or(self.created_at_camel)
+            .or_else(|| self.payload.as_ref().and_then(|p| p.timestamp));
+        if let Some(raw) = native {
+            if raw.get() == "null" {
+                return Ok(None);
+            }
+            let text = string(Some(raw));
+            return crate::parser::timestamp_parts(
+                if text.is_none() {
+                    serde_json::from_str::<i64>(raw.get()).ok()
+                } else {
+                    None
+                },
+                text.as_deref(),
+            )
+            .map(Some)
+            .ok_or_else(|| {
+                super::DecodeError::Fields(crate::LineErrorKind::InvalidField("timestamp".into()))
+            });
+        }
+        // Rare legacy nested timestamp; only this small field is materialized.
+        if let Some(data) = self.data {
+            #[derive(Deserialize)]
+            struct Data<'a> {
+                #[serde(default, borrow, deserialize_with = "present")]
+                message: Option<&'a RawValue>,
+            }
+            if let Ok(data) = serde_json::from_str::<Data<'_>>(data.get())
+                && let Some(message) = data.message
+            {
+                #[derive(Deserialize)]
+                struct Message<'a> {
+                    #[serde(default, borrow, deserialize_with = "present")]
+                    timestamp: Option<&'a RawValue>,
+                }
+                if let Ok(message) = serde_json::from_str::<Message<'_>>(message.get())
+                    && let Some(timestamp) = message.timestamp
+                {
+                    let value: Value = serde_json::from_str(timestamp.get())?;
+                    return crate::parser::timestamp(&serde_json::json!({"timestamp":value}))
+                        .map_err(super::DecodeError::Fields);
+                }
+            }
+        }
+        Ok(None)
+    }
+
     pub(super) fn kind(&self) -> Option<Cow<'_, str>> {
         string(self.kind)
     }
@@ -70,6 +125,7 @@ impl Header<'_> {
             ("created_at", self.created_at),
             ("createdAt", self.created_at_camel),
             ("uuid", self.uuid),
+            ("data", self.data),
         ] {
             raw(&mut root, key, v)?;
         }

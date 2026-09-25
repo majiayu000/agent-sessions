@@ -93,7 +93,9 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
             }
         }
         "progress" => {
-            if let Some(m) = v.pointer("/data/message/message") {
+            if (p.wants(EventKinds::TOOL_CALL) || p.wants(EventKinds::TOOL_RESULT))
+                && let Some(m) = v.pointer("/data/message/message")
+            {
                 p.message_id = string(m, "id").or_else(|| {
                     v.pointer("/data/message/id")
                         .and_then(Value::as_str)

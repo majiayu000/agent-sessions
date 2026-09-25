@@ -80,6 +80,7 @@ pub(super) fn decode(
     h: &Header<'_>,
     state: &mut State,
     opts: &ReadOptions,
+    at: Option<DateTime<Utc>>,
 ) -> Result<Parsed, DecodeError> {
     let Some(payload) = &h.payload else {
         return Err(DecodeError::Fields(LineErrorKind::MissingField("payload")));
@@ -88,12 +89,9 @@ pub(super) fn decode(
         return Ok(Parsed::default());
     };
     let info: Info<'_> = serde_json::from_str(raw.get())?;
-    let timestamp = text(h.timestamp, "timestamp")?.ok_or(DecodeError::Fields(
+    let timestamp = header::string(h.timestamp).ok_or(DecodeError::Fields(
         LineErrorKind::MissingField("timestamp"),
     ))?;
-    let at = DateTime::parse_from_rfc3339(timestamp.trim())
-        .map(|at| at.with_timezone(&Utc))
-        .map_err(|_| DecodeError::Fields(LineErrorKind::InvalidField("timestamp".into())))?;
     let payload_model = text(payload.model, "/payload/model")?;
     for (value, field) in [
         (payload.id, "/payload/id"),
@@ -117,7 +115,7 @@ pub(super) fn decode(
     .flatten()
     .find(|model| !model.trim().is_empty());
     let mut parsed = Parsed {
-        at: Some(at),
+        at,
         include: opts.include,
         accounting: opts.accounting,
         timestamp_text: Some(timestamp.into_owned()),

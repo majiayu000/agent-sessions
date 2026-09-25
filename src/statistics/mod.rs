@@ -29,6 +29,7 @@ pub(crate) fn decode(
         && !opts.include.contains(EventKinds::TOOL_RESULT)
     {
         let header: header::Header<'_> = serde_json::from_slice(bytes)?;
+        let at = header.timestamp()?;
         if let Some((known, label)) = ignored(&header, opts.codex_usage) {
             return Ok(Parsed {
                 ignored_one: Some((known, label)),
@@ -40,7 +41,7 @@ pub(crate) fn decode(
             && opts.include.contains(EventKinds::USAGE)
             && header.payload.as_ref().and_then(|p| p.kind()).as_deref() == Some("token_count")
         {
-            return usage::decode(&header, state, opts);
+            return usage::decode(&header, state, opts, at);
         }
         let value = header.value()?;
         return parse(

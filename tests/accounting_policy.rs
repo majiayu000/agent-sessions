@@ -154,3 +154,105 @@ fn statistics_checks_missing_time_before_ignoring_incomplete_usage() {
         }))
     ));
 }
+
+fn statistics_outcome(
+    value: &serde_json::Value,
+    include: EventKinds,
+) -> (Vec<Located<Event>>, Vec<String>, serde_json::Value) {
+    let mut reader = read_from(
+        Agent::Codex,
+        std::io::Cursor::new(value.to_string()),
+        &ReadOptions {
+            accounting: AccountingPolicy::UsageStatistics,
+            include,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut events = Vec::new();
+    let mut errors = Vec::new();
+    for row in reader.by_ref() {
+        match row {
+            Ok(event) => events.push(event),
+            Err(error) => errors.push(format!("{error:?}")),
+        }
+    }
+    (
+        events,
+        errors,
+        serde_json::to_value(reader.finish()).unwrap(),
+    )
+}
+
+#[test]
+fn statistical_fast_and_general_paths_share_timestamp_diagnostics() {
+    for timestamp in [
+        json!("100"),
+        json!(" -100 "),
+        json!("2026-01-01T00:00:00.123Z"),
+        json!("broken"),
+        json!(100),
+        json!(null),
+        json!({}),
+    ] {
+        for payload in [
+            json!({"type":"token_count","info":{"total_token_usage":{"input_tokens":10}}}),
+            json!({"type":"token_count","info":null}),
+            json!({"type":"agent_message"}),
+        ] {
+            let row = json!({"type":"event_msg","timestamp":timestamp,"payload":payload});
+            let fast = statistics_outcome(&row, EventKinds::USAGE);
+            let general = statistics_outcome(&row, EventKinds::USAGE.union(EventKinds::MESSAGE));
+            assert_eq!(fast, general, "{row}");
+        }
+    }
+    let row = json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":10}}}});
+    let (events, errors, summary) = statistics_outcome(&row, EventKinds::USAGE);
+    assert!(errors.is_empty());
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].at.unwrap().timestamp(), 100);
+    assert!(matches!(&events[0].value, Event::Usage(usage) if usage.counts.input == Some(10)));
+    assert_eq!(summary["status"], "Complete");
+    let row = json!({"type":"event_msg","timestamp":"broken","payload":{"type":"agent_message"}});
+    let (events, errors, summary) = statistics_outcome(&row, EventKinds::USAGE);
+    assert!(events.is_empty());
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0].contains("InvalidField(\"timestamp\")"));
+    assert_eq!(summary["status"], "CompleteWithErrors");
+    assert_eq!(summary["last_complete_byte"], 0);
+}
+
+#[test]
+fn statistical_timestamp_field_precedence_matches_general_decoder() {
+    for fields in [
+        json!({"created_at":"100"}),
+        json!({"createdAt":100}),
+        json!({"timestamp":null,"created_at":"broken"}),
+        json!({"created_at":null,"createdAt":"broken"}),
+        json!({"data":{"message":{"timestamp":"broken"}}}),
+        json!({"data":{"message":{"timestamp":100}}}),
+    ] {
+        for kind in ["agent_message", "token_count"] {
+            let mut row = fields.clone();
+            row["type"] = json!("event_msg");
+            row["payload"] = json!({"type":kind,"timestamp":"2026-01-01T00:00:00Z"});
+            for nested in [true, false] {
+                if !nested {
+                    row["payload"].as_object_mut().unwrap().remove("timestamp");
+                }
+                assert_eq!(
+                    statistics_outcome(&row, EventKinds::USAGE),
+                    statistics_outcome(&row, EventKinds::USAGE.union(EventKinds::MESSAGE)),
+                    "{row}"
+                );
+            }
+        }
+    }
+    // Even a valid fallback timestamp cannot replace the native string required
+    // by the ccstats token-count contract when info is present.
+    let row =
+        json!({"type":"event_msg","created_at":100,"payload":{"type":"token_count","info":{}}});
+    let (events, errors, _) = statistics_outcome(&row, EventKinds::USAGE);
+    assert!(events.is_empty());
+    assert!(errors[0].contains("MissingField(\"timestamp\")"));
+}
