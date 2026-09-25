@@ -11,7 +11,9 @@
           "record_index": 0
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Message": {
             "is_meta": false,
@@ -35,13 +37,16 @@
           "record_index": 0
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "ToolCall": {
             "arguments": {
               "Json": {}
             },
             "id": "server-fixture",
+            "kind": "Server",
             "name": "search"
           }
         }

@@ -18,6 +18,11 @@ pub(super) fn parse(kind: &str, v: &Value, p: &mut Parsed) -> Result<(), LineErr
             p.emit(
                 3,
                 Event::ToolCall(ToolCall {
+                    kind: if kind == "custom_tool_call" {
+                        crate::ToolCallKind::Custom
+                    } else {
+                        crate::ToolCallKind::Function
+                    },
                     id: string(v, "call_id"),
                     name: required(v, "name")?.to_owned(),
                     arguments: args,

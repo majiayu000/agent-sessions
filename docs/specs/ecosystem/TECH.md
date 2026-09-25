@@ -25,3 +25,16 @@ raw framing API gives archive users exact data without taxing statistics readers
 
 No database or host hooks change in this library step. Publication is deferred
 until all selected consumer adapters and package checks have passed.
+
+## ccstats consumer gate
+
+ccstats's existing integration tests explicitly clamp negative Claude counters,
+cap cache-TTL subsets, accept usage envelopes without a record type, and treat
+missing cumulative baselines as zero. Preserve these application semantics through
+an explicit UsageStatistics accounting policy. Strict remains the library default.
+Normalized usage records expose adjustments, so the conversion is observable;
+missing native fields remain None. Codex invalid cache buckets remain errors.
+
+Retain native timestamp text alongside parsed UTC time for report string parity.
+Tag tool call kind so client-tool statistics can exclude server tools. Distinguish
+record UUID from provider message ID; they are not interchangeable dedup keys.

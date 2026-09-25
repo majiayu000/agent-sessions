@@ -11,13 +11,16 @@
           "record_index": 0
         },
         "message_id": "nested-fixture",
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": "2026-09-25T00:00:00Z",
         "value": {
           "ToolCall": {
             "arguments": {
               "Json": {}
             },
             "id": "t",
+            "kind": "Function",
             "name": "Read"
           }
         }

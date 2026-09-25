@@ -14,6 +14,11 @@ pub(super) fn parse(content: &Value, p: &mut Parsed) -> Result<(), LineErrorKind
             "tool_use" | "server_tool_use" if p.wants(EventKinds::TOOL_CALL) => p.emit(
                 3 + index,
                 Event::ToolCall(ToolCall {
+                    kind: if b["type"] == "server_tool_use" {
+                        crate::ToolCallKind::Server
+                    } else {
+                        crate::ToolCallKind::Function
+                    },
                     id: string(b, "id"),
                     name: required(b, "name")?.to_owned(),
                     arguments: b

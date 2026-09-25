@@ -161,3 +161,18 @@ uses message bodies as fallback titles. `Message::first_text()` preserves the
 first original text block; `text_segments` are UTF-8 byte ranges in joined text.
 A title-preview consumer may stop iteration early or use a bounded prefix source;
 that does not mean a complete snapshot was read.
+
+## Statistical normalization and provenance
+
+The default AccountingPolicy::Strict rejects negative counters and malformed TTL
+breakdowns. UsageStatistics is an explicit policy for existing statistics clients:
+negative Claude counters are clamped, cache-TTL subsets capped, empty usage objects
+remain observable, and cumulative decreases use saturating deltas. Every affected
+Usage carries adjustments. Missing native fields still remain None; callers own
+whether their aggregation treats them as zero. Codex invalid cache buckets are
+not clamped. This policy also accepts legacy Claude usage-only envelopes.
+
+Located.timestamp_text retains native timestamp spelling, independently of parsed
+UTC time. record_id (Claude UUID) and message_id (provider message ID) are distinct.
+ToolCallKind distinguishes client functions, custom calls and server tools.
+Roots::from_env_for resolves only one host, avoiding unrelated override failures.

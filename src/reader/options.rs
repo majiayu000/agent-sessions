@@ -12,6 +12,7 @@ pub enum TailMode {
 
 #[derive(Debug, Clone)]
 pub struct ReadOptions {
+    pub accounting: crate::AccountingPolicy,
     pub max_file_bytes: Option<u64>,
     /// Includes the line delimiter. Enforced before allocating the whole line.
     pub max_line_bytes: Option<usize>,
@@ -29,6 +30,7 @@ impl Default for ReadOptions {
             include: EventKinds::ALL,
             tail: TailMode::Strict,
             codex_usage: CodexUsageMode::TokenCount,
+            accounting: crate::AccountingPolicy::Strict,
         }
     }
 }

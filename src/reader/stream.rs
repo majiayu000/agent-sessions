@@ -66,6 +66,7 @@ impl<R: BufRead> Iterator for SessionReader<R> {
                 &mut self.state,
                 self.opts.codex_usage,
                 self.opts.include,
+                self.opts.accounting,
             ) {
                 Ok(p) => p,
                 Err(kind) => return Some(Err(self.line_error(start, kind))),
@@ -92,6 +93,8 @@ impl<R: BufRead> Iterator for SessionReader<R> {
                         event_index,
                     },
                     at: parsed.at,
+                    timestamp_text: parsed.timestamp_text.clone(),
+                    record_id: parsed.record_id.clone(),
                     session_id: self.state.session_id.clone(),
                     message_id: parsed.message_id.clone(),
                     value: event,

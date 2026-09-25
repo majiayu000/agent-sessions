@@ -11,9 +11,12 @@
           "record_index": 1
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Usage": {
+            "adjustments": [],
             "basis": "Response",
             "counts": {
               "cache_read": 20,

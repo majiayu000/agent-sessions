@@ -11,7 +11,9 @@
           "record_index": 0
         },
         "message_id": null,
+        "record_id": null,
         "session_id": "session-fixture",
+        "timestamp_text": "2026-09-25T00:00:00Z",
         "value": {
           "Meta": {
             "agent_version": null,
@@ -38,7 +40,9 @@
           "record_index": 0
         },
         "message_id": null,
+        "record_id": null,
         "session_id": "session-fixture",
+        "timestamp_text": "2026-09-25T00:00:00Z",
         "value": {
           "Message": {
             "is_meta": false,

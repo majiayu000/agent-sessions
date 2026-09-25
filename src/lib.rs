@@ -3,6 +3,7 @@
 //! Events preserve source semantics and provenance. Check [`ReadSummary`] before
 //! committing a snapshot; receiving events alone does not establish completeness.
 #![doc = include_str!("../README.md")]
+mod accounting;
 mod agent;
 mod claude;
 mod codex;
@@ -18,6 +19,7 @@ mod roots;
 mod titles;
 mod tokens;
 
+pub use accounting::UsageAdjustment;
 pub use agent::*;
 pub use discover::*;
 pub use error::*;

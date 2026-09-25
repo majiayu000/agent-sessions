@@ -11,13 +11,16 @@
           "record_index": 0
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "ToolCall": {
             "arguments": {
               "RawString": "patch text"
             },
             "id": "tool-fixture",
+            "kind": "Custom",
             "name": "patch"
           }
         }
@@ -34,7 +37,9 @@
           "record_index": 1
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "ToolResult": {
             "call_id": "tool-fixture",

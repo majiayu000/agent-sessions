@@ -1,11 +1,21 @@
 mod tools;
 mod usage;
-use crate::parser::{Parsed, State, flag, required, string, text_projection};
+use crate::parser::{Parsed, State, flag, string, text_projection};
 use crate::{Event, EventKinds, LineErrorKind, Message, MetaUpdate, Role};
 use serde_json::Value;
 
 pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
-    let kind = required(v, "type")?;
+    if p.accounting == crate::AccountingPolicy::UsageStatistics
+        && v.get("type").is_none()
+        && v.get("message").is_none()
+    {
+        return Ok(());
+    }
+    let kind = match v.get("type").and_then(Value::as_str) {
+        Some(kind) => kind,
+        None if p.accounting == crate::AccountingPolicy::UsageStatistics => "assistant",
+        None => return Err(LineErrorKind::MissingField("type")),
+    };
     let session_id = string(v, "sessionId").or_else(|| string(v, "session_id"));
     if let Some(id) = &session_id {
         state.session_id = Some(id.clone());
@@ -31,14 +41,18 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
     p.message_id = v
         .pointer("/message/id")
         .and_then(Value::as_str)
-        .map(str::to_owned)
-        .or_else(|| string(v, "uuid"));
+        .map(str::to_owned);
     match kind {
         "user" | "assistant" => {
-            let m = v
-                .get("message")
-                .filter(|m| m.is_object())
-                .ok_or(LineErrorKind::MissingField("message"))?;
+            let m = match v.get("message").filter(|m| m.is_object()) {
+                Some(m) => m,
+                None if p.accounting == crate::AccountingPolicy::UsageStatistics
+                    && !p.wants(EventKinds::MESSAGE) =>
+                {
+                    return Ok(());
+                }
+                None => return Err(LineErrorKind::MissingField("message")),
+            };
             if p.wants(EventKinds::MESSAGE) {
                 let c = m
                     .get("content")
@@ -75,7 +89,7 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
             if p.wants(EventKinds::USAGE)
                 && let Some(u) = m.get("usage").filter(|u| !u.is_null())
             {
-                p.emit(2, Event::Usage(usage::parse(m, u)?));
+                p.emit(2, Event::Usage(usage::parse(m, u, p.accounting)?));
             }
         }
         "progress" => {

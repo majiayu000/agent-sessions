@@ -75,3 +75,19 @@ pub enum Endpoint {
     #[default]
     Unknown,
 }
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum AccountingPolicy {
+    #[default]
+    Strict,
+    /// Explicit legacy statistical normalization; adjustments remain observable.
+    UsageStatistics,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum ToolCallKind {
+    Function,
+    Custom,
+    Server,
+}

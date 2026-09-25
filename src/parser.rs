@@ -13,6 +13,9 @@ pub(crate) struct State {
 }
 #[derive(Default)]
 pub(crate) struct Parsed {
+    pub accounting: crate::AccountingPolicy,
+    pub timestamp_text: Option<String>,
+    pub record_id: Option<String>,
     pub events: Vec<(usize, Event)>,
     pub include: EventKinds,
     pub unknown: Vec<String>,
@@ -45,13 +48,15 @@ pub(crate) fn required<'a>(v: &'a Value, key: &'static str) -> Result<&'a str, L
         .and_then(Value::as_str)
         .ok_or(LineErrorKind::MissingField(key))
 }
-pub(crate) fn timestamp(v: &Value) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
-    let t = v
-        .get("timestamp")
+fn timestamp_value(v: &Value) -> Option<&Value> {
+    v.get("timestamp")
         .or_else(|| v.get("created_at"))
         .or_else(|| v.get("createdAt"))
         .or_else(|| v.pointer("/payload/timestamp"))
-        .or_else(|| v.pointer("/data/message/timestamp"));
+        .or_else(|| v.pointer("/data/message/timestamp"))
+}
+pub(crate) fn timestamp(v: &Value) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
+    let t = timestamp_value(v);
     let Some(t) = t.filter(|t| !t.is_null()) else {
         return Ok(None);
     };
@@ -104,10 +109,16 @@ pub(crate) fn parse(
     state: &mut State,
     mode: CodexUsageMode,
     include: EventKinds,
+    accounting: crate::AccountingPolicy,
 ) -> Result<Parsed, LineErrorKind> {
     let mut candidate = state.clone();
     let mut parsed = Parsed {
         at: timestamp(v)?,
+        timestamp_text: timestamp_value(v)
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        record_id: string(v, "uuid"),
+        accounting,
         include,
         ..Parsed::default()
     };

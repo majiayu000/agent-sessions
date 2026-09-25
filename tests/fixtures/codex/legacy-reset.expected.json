@@ -11,9 +11,12 @@
           "record_index": 0
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Usage": {
+            "adjustments": [],
             "basis": "InitialCumulative",
             "counts": {
               "cache_read": 2,
@@ -59,9 +62,12 @@
           "record_index": 2
         },
         "message_id": null,
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Usage": {
+            "adjustments": [],
             "basis": "CumulativeDelta",
             "counts": {
               "cache_read": 0,

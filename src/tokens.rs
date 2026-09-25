@@ -35,7 +35,7 @@ impl TokenCounts {
     pub fn is_missing(&self) -> bool {
         self.values().iter().all(Option::is_none)
     }
-    fn values(&self) -> [Option<u64>; 7] {
+    pub(crate) fn values(&self) -> [Option<u64>; 7] {
         [
             self.input,
             self.output,
@@ -45,6 +45,26 @@ impl TokenCounts {
             self.reasoning,
             self.reported_total,
         ]
+    }
+    pub(crate) fn statistics_eq(self, other: Self) -> bool {
+        self.values()
+            .into_iter()
+            .zip(other.values())
+            .all(|(a, b)| a.unwrap_or(0) == b.unwrap_or(0))
+    }
+    pub(crate) fn statistics_delta(self, prev: Self) -> Self {
+        fn sub(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+            a.map(|a| a.saturating_sub(b.unwrap_or(0)))
+        }
+        Self {
+            input: sub(self.input, prev.input),
+            output: sub(self.output, prev.output),
+            cache_read: sub(self.cache_read, prev.cache_read),
+            cache_write: sub(self.cache_write, prev.cache_write),
+            cache_write_1h: sub(self.cache_write_1h, prev.cache_write_1h),
+            reasoning: sub(self.reasoning, prev.reasoning),
+            reported_total: sub(self.reported_total, prev.reported_total),
+        }
     }
     pub(crate) fn regressed_from(&self, prev: &Self) -> bool {
         self.values()
@@ -98,7 +118,11 @@ fn count(v: &Value, key: &str) -> Result<Option<u64>, LineErrorKind> {
     }
 }
 
-pub(crate) fn parse_counts(v: &Value, claude: bool) -> Result<TokenCounts, LineErrorKind> {
+pub(crate) fn parse_counts(
+    v: &Value,
+    claude: bool,
+    allow_missing: bool,
+) -> Result<TokenCounts, LineErrorKind> {
     if !v.is_object() {
         return Err(LineErrorKind::InvalidField("usage".into()));
     }
@@ -127,7 +151,7 @@ pub(crate) fn parse_counts(v: &Value, claude: bool) -> Result<TokenCounts, LineE
         reasoning: count(v, "reasoning_output_tokens")?,
         reported_total: count(v, "total_tokens")?,
     };
-    if result.is_missing() {
+    if result.is_missing() && !allow_missing {
         return Err(LineErrorKind::MissingField("usage counters"));
     }
     if matches!((result.cache_write_1h,result.cache_write),(Some(h),Some(w)) if h>w) {

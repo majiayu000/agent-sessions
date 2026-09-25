@@ -11,7 +11,9 @@
           "record_index": 0
         },
         "message_id": "message-fixture",
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Meta": {
             "agent_version": "2.1.fixture",
@@ -38,7 +40,9 @@
           "record_index": 0
         },
         "message_id": "message-fixture",
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Message": {
             "is_meta": false,
@@ -67,9 +71,12 @@
           "record_index": 0
         },
         "message_id": "message-fixture",
+        "record_id": null,
         "session_id": null,
+        "timestamp_text": null,
         "value": {
           "Usage": {
+            "adjustments": [],
             "basis": "Message",
             "counts": {
               "cache_read": 30,

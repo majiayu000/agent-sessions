@@ -32,7 +32,7 @@ pub(crate) fn parse(
                 }
                 state.session_id = Some(id.clone());
             }
-            let model = string(payload, "model");
+            let model = model(payload);
             if model.is_some() {
                 state.model.clone_from(&model);
             }
@@ -116,17 +116,12 @@ pub(crate) fn parse(
                 "token_count"
                     if mode == CodexUsageMode::TokenCount && p.wants(EventKinds::USAGE) =>
                 {
-                    let model = payload
-                        .pointer("/info/model")
-                        .or_else(|| payload.pointer("/info/model_name"))
-                        .or_else(|| payload.pointer("/info/metadata/model"))
-                        .or_else(|| payload.get("model"))
-                        .and_then(Value::as_str)
-                        .filter(|s| !s.trim().is_empty());
-                    if let Some(m) = model {
-                        state.model = Some(m.to_owned());
-                    }
-                    if let Some(u) = usage::token_count(payload, state)? {
+                    let observed_model = model(payload);
+                    if let Some(mut u) = usage::token_count(payload, state, p.accounting)? {
+                        if let Some(model) = observed_model {
+                            state.model = Some(model.clone());
+                            u.model = Some(model);
+                        }
                         p.emit(2, Event::Usage(u));
                     }
                 }
@@ -159,4 +154,18 @@ pub(crate) fn parse(
         other => p.unknown.push(other.into()),
     }
     Ok(())
+}
+
+fn model(payload: &Value) -> Option<String> {
+    [
+        payload.pointer("/info/model"),
+        payload.pointer("/info/model_name"),
+        payload.pointer("/info/metadata/model"),
+        payload.get("model"),
+    ]
+    .into_iter()
+    .flatten()
+    .filter_map(Value::as_str)
+    .find(|s| !s.trim().is_empty())
+    .map(str::to_owned)
 }

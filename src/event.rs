@@ -16,6 +16,8 @@ pub struct Location {
 pub struct Located<T> {
     pub location: Location,
     pub at: Option<DateTime<Utc>>,
+    pub timestamp_text: Option<String>,
+    pub record_id: Option<String>,
     pub session_id: Option<String>,
     pub message_id: Option<String>,
     pub value: T,
@@ -63,6 +65,7 @@ impl Message {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolCall {
+    pub kind: crate::ToolCallKind,
     pub id: Option<String>,
     pub name: String,
     pub arguments: ToolArgs,
@@ -85,6 +88,7 @@ pub struct ToolResult {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Usage {
+    pub adjustments: Vec<crate::UsageAdjustment>,
     /// Source identity only. Scope with host/session when deduplicating.
     /// None requires the consumer to use physical occurrence identity.
     pub dedup_key: Option<String>,

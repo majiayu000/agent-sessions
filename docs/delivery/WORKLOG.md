@@ -29,3 +29,35 @@ Validation: Rust 1.88 fmt/check, 46 integration tests, 1 rustdoc example, clippy
 with warnings denied, and a 60-second AddressSanitizer fuzz run including raw and
 history readers all passed. Logs: /tmp/agent-sessions-t1-tests.log and
 /tmp/agent-sessions-t1-fuzz.log. No consumer migrations included in this commit.
+
+## T2 completed
+
+ccstats candidate 0.9.0 upstreamed QuotaBar weekly-reserve SDK patch; Grok patch
+was already upstream. Commit d3de1f3. Replaced an invariant expect with an error
+return and preserved exact snapshot equality without floating-point lint bypasses.
+Validation: cargo test (1,014 passed in 39 suites), clippy -D warnings, check and
+fmt. Output: /tmp/ccstats-weekly-full.log.
+
+Baseline is sealed outside repositories at .agent-sessions-delivery/baseline.
+147 Claude files (including title indices), 6,534 Codex files; source replicas
+are APFS copy-on-write copies, never uploaded. Baseline binary ccstats-before
+was built from 2e2a766 and ad-hoc signed. baseline/run.py explicitly selects
+Claude, uses isolated config/cache and validates JSON output. Final before run
+median: 3.15 s, 5 repetitions, application cache disabled, OS page cache retained.
+Earlier runs that inherited a legacy user source config were discarded.
+
+T3 integration must preserve ccstats negative-token clamp contract (existing
+negative_token_integration), missing counters/TTL normalization, raw timestamp
+spelling, tool_use versus server_tool_use, and global dedup IDs. Core defaults
+remain strict; any optional compatibility normalization must be explicit and
+auditable, not silently change all readers.
+
+## T3.1 consumer contract additions
+
+Added explicit UsageStatistics accounting policy with observable adjustments,
+retaining strict defaults. Native timestamp text and record UUID are separate
+from parsed time/provider message IDs; ToolCallKind preserves client/server tool
+distinction. Added per-host environment resolution and fixed empty-model fallback
+selection. Validation: 51 integration tests plus fmt/check/clippy passed on 1.88.
+These additions were required by existing ccstats integration contracts, not
+new product behavior. Existing v0.1 strict error tests remain unchanged/passing.
