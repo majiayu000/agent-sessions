@@ -46,6 +46,8 @@ fn malformed_title_error_does_not_print_field_values() {
     .unwrap();
     let e = load_session_titles(Agent::Codex, &roots, &["one".into()]).unwrap_err();
     assert!(!e.to_string().contains("PRIVATE-SENTINEL"));
+    assert_eq!(e.kind(), std::io::ErrorKind::InvalidData);
+    assert!(e.to_string().starts_with("Malformed title index "));
 }
 #[test]
 fn first_text_block_retains_empty_and_unicode_boundaries() {

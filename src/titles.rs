@@ -51,7 +51,7 @@ fn invalid(path: &Path, error: serde_json::Error) -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidData,
         format!(
-            "malformed title index {} at line {}, column {}",
+            "Malformed title index {} at line {}, column {}",
             path.display(),
             error.line(),
             error.column()
@@ -77,7 +77,7 @@ fn codex(path: &Path, ids: &HashSet<&str>) -> io::Result<HashMap<String, Session
             io::Error::new(
                 io::ErrorKind::InvalidData,
                 format!(
-                    "malformed title index {} at line {}",
+                    "Malformed title index {} at line {}",
                     path.display(),
                     index + 1
                 ),
