@@ -1,12 +1,12 @@
 # agent-sessions
 
 Discover and stream Claude Code and Codex session files as typed Rust events.
-Local v0.2 implementation, integrated with ccstats and QuotaBar in migration
-branches. Other consumer migrations are in progress. Registry publication is pending.
+Strict typed readers and explicit compatibility projections share native formats
+while callers retain their accounting, filtering and archive commit policies.
 
 ```toml
 [dependencies]
-agent-sessions = { path = "../agent-sessions" }
+agent-sessions = "0.2.0"
 ```
 
 ```rust
