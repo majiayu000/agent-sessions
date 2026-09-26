@@ -10,14 +10,14 @@
 
 | 仓库 | 可审阅结果 | 已完成的主要验证 | 剩余门槛 |
 |---|---|---|---|
-| ccstats | [PR190](https://github.com/majiayu000/ccstats/pull/190)，666b9ec，0.9.0候选 | 1002完整测试、审查修复后11回归；桌面15 Rust/36 Web/1 IPC；最新远端5checks全绿；独立review闭环 | 合并授权及正式发布 |
-| refine | [PR229](https://github.com/majiayu000/refine/pull/229)，76140ff | 654workspace、108会话测试；真实数据对比；最新10checks全绿 | 合并授权 |
-| ccp | [PR11](https://github.com/majiayu000/ccp/pull/11)，511be68 | 48tests、真实摘要和usage对比；CI通过 | 合并授权 |
-| chat-archive-rs | [PR29](https://github.com/majiayu000/chat-archive-rs/pull/29)，23bfdaa | 29tests、真实原文/offset/hash/ID/恢复位置零差异、registry locked check | 合并授权；仓库无CI，不声称CI绿 |
-| life-looper | [PR1](https://github.com/majiayu000/life-looper/pull/1)，发布版CLI已联测 | Go premerge、3Node渲染回归、真实CLI的范围/价格/告警联测 | 合并授权；部署前需ccstats0.9 |
-| quotabar | [Draft PR188](https://github.com/majiayu000/quotabar/pull/188)，62af678，0.5.3候选 | 最终SDK候选132Rust通过/5忽略；612frontend及build | ccstats发布、registry锁/无patch验证、CI及人工发布批准 |
-| keepline | [Draft PR116](https://github.com/majiayu000/keepline/pull/116)，157c309 | 最终SDK候选19Rust、516Bun、build/typecheck | ccstats发布、registry锁/无patch验证、CI/合并 |
-| remem | Spec PR1089 CI已通过；[Draft 实现PR1091](https://github.com/majiayu000/remem/pull/1091)，eb5fd714 | 128focused；production4078通过/6忽略；114eval指标与最终4平台安全证据通过 | 实现PR的CI及合并授权；main CI成功会自动发布 |
+| ccstats | [PR190](https://github.com/majiayu000/ccstats/pull/190)，已合并 8026edb；0.9.0 已发布，release workflow 36211757898 全部 14 项通过 | 1002完整测试、审查修复后11回归；桌面15 Rust/36 Web/1 IPC；最新远端5checks全绿；独立review闭环 | 完成；本机 Cargo 安装 0.9.0，Looper 联测通过 |
+| refine | [PR229](https://github.com/majiayu000/refine/pull/229)，已合并 dce9e90 | 654workspace、108会话测试；真实数据对比；最新10checks全绿 | 无；记录 main CI 结果 |
+| ccp | [PR11](https://github.com/majiayu000/ccp/pull/11)，已合并 1c079a6 | 48tests、真实摘要和usage对比；CI通过 | 无；记录 main CI 结果 |
+| chat-archive-rs | [PR29](https://github.com/majiayu000/chat-archive-rs/pull/29)，已合并 283fac8 | 29tests、真实原文/offset/hash/ID/恢复位置零差异、registry locked check | 已完成合并；仓库无CI |
+| life-looper | [PR1](https://github.com/majiayu000/life-looper/pull/1)，已合并 231caee；候选发布版CLI已联测 | Go premerge、3Node渲染回归、真实CLI的范围/价格/告警联测 | 完成；实际 CLI 联测通过，新 Looper 已安装，服务保持未启动 |
+| quotabar | [Draft PR188](https://github.com/majiayu000/quotabar/pull/188)，9998207，0.5.3候选 | 最终SDK候选132Rust通过/5忽略；612frontend及build | registry 无 patch 验证完成；等待 CI 后合并/发布 |
+| keepline | [Draft PR116](https://github.com/majiayu000/keepline/pull/116)，1460676，menubar 1.1.1候选 | 最终SDK候选19Rust、516Bun、build/typecheck | registry 无 patch 验证完成；等待 CI 后合并/发布 |
+| remem | Spec PR1089 CI已通过；[Draft 实现PR1091](https://github.com/majiayu000/remem/pull/1091)，eb5fd714 | 128focused；production4078通过/6忽略；114eval指标与最终4平台安全证据通过 | 修复新发现的 spec review：历史分类升级、显式路径错误；刷新 native 证据后合并，main CI成功会自动发布 |
 
 ## 性能与数据清理
 
