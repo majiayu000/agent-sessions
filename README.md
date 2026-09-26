@@ -1,8 +1,18 @@
 # agent-sessions
 
-Discover and stream Claude Code and Codex session files as typed Rust events.
-Strict typed readers and explicit compatibility projections share native formats
-while callers retain their accounting, filtering and archive commit policies.
+`agent-sessions` is a Rust library for reading Claude Code and Codex JSONL
+session files. It discovers local sessions and streams messages, tool calls,
+usage and metadata as typed events with timestamps and source offsets. Use it
+to build usage reports, searchable archives or other tools that need to trace
+an event back to its original record.
+
+[crates.io](https://crates.io/crates/agent-sessions) ·
+[API docs](https://docs.rs/agent-sessions) ·
+[GitHub releases](https://github.com/majiayu000/agent-sessions/releases)
+
+The reader bounds file and line sizes, reports malformed records, and keeps
+source provenance. Callers decide their own accounting, filtering and archive
+commit policies.
 
 ```toml
 [dependencies]
