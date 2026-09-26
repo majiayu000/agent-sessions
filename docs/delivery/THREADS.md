@@ -4,7 +4,7 @@
 
 - Goal: complete the approved shared parser and all ecosystem consumer migrations, preserve application policies and original user worktrees.
 - Done when: all scoped code, focused and required full verification, durable commits and delivery evidence exist; registry/publication and remote gates reported separately.
-- Mode: execute_direct. Merge policy: no_merge pending explicit merge authorization.
+- Mode: execute_direct. Merge policy: merge_after_gate. User explicitly approved the batch merge/release sequence on 2026-09-26 with “这样做”.
 - Remote truth: required before remote delivery; local implementation currently truth level C. CI source: repository workflows.
 - Capability: native collaboration tools available; explicit parallel authorization received for the six remaining repositories.
 - WIP budget: six native lanes, matching the authorized six-repository parallel scope; dependent remem/archive API work stays read-only until core gate opens.
@@ -47,3 +47,7 @@ All six lanes spawned via collaboration.spawn_agent: /root/core, /root/remem, /r
 - ccstats0a939c6 had997tests green; latest scoped details fixes pending Rust gates. Looper5a5e363 Go scope/coverage tests/premerge green, final real CLI gate pending.
 
 Current local Cargo scheduling is serialized: remem owns full spec/runtime preflight; then ccstats/desktop, keepline, final release CLI and paired throughput. Other lanes may run read-only/Go/Node checks. New native independent review collected concrete defects and fixes; no merge was performed.
+
+## Authorized release closure (2026-09-26)
+
+User approved ccstats #190 merge and 0.9.0 release, downstream registry refresh and merge, independent consumer merges (remem spec before implementation), and local ccstats installation. Root owns merges/releases and integration. Native core_review is the independent read-only merge reviewer; remem lane checks its stacked PR and automatic release gates. Fresh heads, CI and review threads remain required. Original dirty worktrees are preserved.

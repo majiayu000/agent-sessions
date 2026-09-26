@@ -277,3 +277,11 @@ evidence failure is retained in its original log and closed by explicit updated
 evidence/targeted reruns, not rewritten as an initially green full run.
 SpecPR1089 is CI-green; implementation issue1090 and stacked runtime PR track
 the remaining review/CI/merge/distribution gates.
+
+## 2026-09-26 — authorized merge and release closure
+
+User approved the batch merge/release sequence with “这样做”. Fresh GraphQL review/CI checks and native independent merge review were collected. Exact-head merges completed: ccstats #190 → 8026edb0de2adacab13e07d0912f751a74ab2a6a; refine #229 → dce9e9090497cfed21b100376a0843cc99d77903; ccp #11 → 1c079a6e8103b027b5567d97b8dd11e1801e0b8d; chat-archive-rs #29 → 283fac8a20e7fe7cf9c10708674889dfd4883890; life-looper #1 → 231caee9cfefb376bafcd191fdccb33f10bb0179. Archive and Looper have no remote CI; prior local verification was explicitly used.
+
+ccstats merge tree matches reviewed 666b9ec exactly. Release metadata check passed; annotated v0.9.0 pushed and release workflow 36211757898 started (not yet a registry publication). Existing signed desktop/build gates retained. Local installed ccstats remains registry 0.8.1 until publication.
+
+Fresh remem spec review revealed three unresolved threads: legacy persisted mode transition may abort batch ingestion; explicit host directory overrides are incorrectly optional; public default_scan_roots compatibility must be explicit. Native remem lane owns spec/runtime corrections and focused migration tests before any merge. A source change will require refreshing native security evidence.
