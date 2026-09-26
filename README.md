@@ -14,6 +14,40 @@ The reader bounds file and line sizes, reports malformed records, and keeps
 source provenance. Callers decide their own accounting, filtering and archive
 commit policies.
 
+[Crates.io](https://crates.io/crates/agent-sessions) ·
+[API docs](https://docs.rs/agent-sessions) ·
+[Claude Code & Codex JSONL format reference](docs/formats.md)
+
+Used by [ccstats](https://github.com/majiayu000/ccstats/pull/190),
+[Keepline](https://github.com/majiayu000/keepline/pull/116),
+[refine's local session library](https://github.com/majiayu000/refine/pull/229),
+[ccp](https://github.com/majiayu000/ccp/pull/11), and
+[chat-archive-rs](https://github.com/majiayu000/chat-archive-rs/pull/29).
+[QuotaBar](https://github.com/majiayu000/quotabar/pull/188) uses it through ccstats.
+These links point to merged integrations; the
+[Remem migration](https://github.com/majiayu000/remem/pull/1091) is still in review
+(as of 2026-09-26).
+
+### Why share a parser?
+
+Client names alone do not identify a Codex session's source. The parser retains
+native evidence and applies the same classification across consumers:
+
+| Codex metadata | Result | Evidence that takes precedence |
+|---|---|---|
+| `source: {"subagent": {…}}`, `originator: "Codex Desktop"` | Subagent | Structured source |
+| `source: "exec"`, `originator: "Codex Desktop"` | Exec | Explicit source |
+| `source: "vscode"`, `originator: "codex-tui"` | Ide | Explicit source |
+| `source: "cli"`, `thread_source: "subagent"` | Subagent | Thread source |
+| Only `originator: "Codex Desktop"` | Ide | Client fallback |
+
+These cases are covered by [format-contract tests](tests/format_contract.rs).
+Execution provenance does not establish whether a human initiated a session.
+The [format reference](docs/formats.md) also covers the two Codex usage ledgers,
+Claude cache counters, history timestamps, and incomplete JSONL tails.
+
+### Quick start
+
 ```toml
 [dependencies]
 agent-sessions = "0.2.0"
