@@ -123,6 +123,8 @@ exact captured prefix; an input shorter than that prefix fails. Length alone
 does not detect concurrent rewrites: immutable snapshot verification is a caller
 responsibility. Readers start at record zero; arbitrary mid-file cumulative
 usage needs a separate baseline protocol and is not supported.
+When `stop_at_byte` is set, `max_file_bytes` bounds that prefix for both file and
+stream readers; a larger unread suffix does not cause a size-limit error.
 
 Recoverable line errors are yielded as `StreamError::Line`. Continue or abort
 according to your application's policy. Fatal IO/limit/snapshot errors are
@@ -204,6 +206,17 @@ first original text block; `text_segments` are UTF-8 byte ranges in joined text.
 A title-preview consumer may stop iteration early or use a bounded prefix source;
 that does not mean a complete snapshot was read.
 
+Title reads default to a 200 MiB per-index limit and an 8 MiB Codex JSONL line
+limit, and capture each file's length before reading. Claude's JSON index is
+bounded by the file limit regardless of physical line layout. Customize these
+budgets with `load_session_titles_with_options` and `TitleReadOptions`.
+The original API and default options remain strict: any malformed row or IO/limit
+error fails the request. Explicit `TitleErrorMode::Collect` returns valid `titles`
+alongside `errors` with source paths and Codex line numbers. A nonempty error list
+means incomplete results, even if requested titles were found. Bad Claude entries
+can be isolated; malformed document syntax invalidates that index, while other
+project indices remain eligible. Neither mode reports title contents in errors.
+
 ## Statistical normalization and provenance
 
 The default AccountingPolicy::Strict rejects negative counters and malformed TTL
@@ -221,7 +234,10 @@ Roots::from_env_for resolves only one host, avoiding unrelated override failures
 
 For Codex statistical projections, the reader borrows envelope fields and skips
 unrequested message/tool bodies before materializing values. Selected records use
-the same semantic decoder. Framing reuses its input buffer and uses vectorized
+the same semantic contract; unsupported fast-path shapes and field errors are
+resolved by the canonical decoder, preserving error kinds and recovery behavior.
+Valid model observations update context even when duplicate usage is suppressed.
+Framing reuses its input buffer and uses vectorized
 newline search; raw consumers still own the exact bytes of each returned record.
 
 ## Archival and transcript projections

@@ -29,7 +29,7 @@ pub fn read(file: &SessionFile, opts: &ReadOptions) -> Result<SessionReader, Rea
     let source = File::open(&file.path).map_err(ReadError::Io)?;
     let metadata = source.metadata().map_err(ReadError::Io)?;
     if let Some(limit) = opts.max_file_bytes
-        && metadata.len() > limit
+        && opts.stop_at_byte.unwrap_or(metadata.len()) > limit
     {
         return Err(ReadError::TooLarge { limit });
     }

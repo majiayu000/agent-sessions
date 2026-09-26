@@ -2,6 +2,33 @@ use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value, value::RawValue};
 use std::borrow::Cow;
 
+/// Serde's derived structs also accept positional arrays. Native envelopes and
+/// counters require JSON objects, just like the canonical Value decoder.
+pub(super) struct Object<T>(pub T);
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for Object<T> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Visitor<T>(std::marker::PhantomData<T>);
+        impl<'de, T: Deserialize<'de>> serde::de::Visitor<'de> for Visitor<T> {
+            type Value = Object<T>;
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a JSON object")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(
+                self,
+                map: A,
+            ) -> Result<Self::Value, A::Error> {
+                T::deserialize(serde::de::value::MapAccessDeserializer::new(map)).map(Object)
+            }
+        }
+        deserializer.deserialize_map(Visitor(std::marker::PhantomData))
+    }
+}
+pub(super) fn optional_object<'de, D: Deserializer<'de>, T: Deserialize<'de>>(
+    deserializer: D,
+) -> Result<Option<T>, D::Error> {
+    Option::<Object<T>>::deserialize(deserializer).map(|value| value.map(|object| object.0))
+}
+
 fn present<'de, D: Deserializer<'de>>(d: D) -> Result<Option<&'de RawValue>, D::Error> {
     <&RawValue>::deserialize(d).map(Some)
 }
@@ -28,7 +55,7 @@ pub(super) struct Header<'a> {
     pub(super) uuid: Option<&'a RawValue>,
     #[serde(default, borrow, deserialize_with = "present")]
     data: Option<&'a RawValue>,
-    #[serde(borrow)]
+    #[serde(default, borrow, deserialize_with = "optional_object")]
     pub payload: Option<Payload<'a>>,
 }
 fields!(Payload {

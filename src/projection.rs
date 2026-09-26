@@ -178,10 +178,8 @@ pub fn project_transcript(agent: Agent, v: &Value) -> TranscriptProjection {
                 meta.originator = crate::parser::string(p, "originator");
                 meta.thread_source = crate::parser::string(p, "thread_source");
             }
-            "user_message" => {
-                if v.get("content").is_some_and(Value::is_string) {
-                    candidate = Some((Role::User, text(v.get("content"), &[], true)));
-                }
+            "user_message" if v.get("content").is_some_and(Value::is_string) => {
+                candidate = Some((Role::User, text(v.get("content"), &[], true)));
             }
             "response_item" => {
                 let p = v.get("payload").unwrap_or(&Value::Null);

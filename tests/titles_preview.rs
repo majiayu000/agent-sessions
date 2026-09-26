@@ -75,3 +75,180 @@ fn first_text_block_retains_empty_and_unicode_boundaries() {
         assert_eq!(m.text_segments.len(), 2);
     }
 }
+
+#[test]
+fn collected_title_errors_preserve_valid_results_and_strict_default() {
+    let home = tempfile::tempdir().unwrap();
+    let roots = Roots::from_home(home.path());
+    let codex = roots.codex.as_ref().unwrap();
+    let claude = roots.claude.as_ref().unwrap().join("projects/p");
+    fs::create_dir_all(codex).unwrap();
+    fs::create_dir_all(&claude).unwrap();
+    fs::write(
+        codex.join("session_index.jsonl"),
+        concat!(
+            "{\"id\":\"one\",\"thread_name\":\"old\"}\n",
+            "{\"id\":\"other\",\"thread_name\":42}\n",
+            "{\"id\":\"one\",\"thread_name\":\"new\"}\n",
+            "{\"id\":\"one\",\"thread_name\":false}\n"
+        ),
+    )
+    .unwrap();
+    fs::write(
+        claude.join("sessions-index.json"),
+        r#"{"entries":[
+        {"sessionId":"one","summary":"old"},
+        {"sessionId":"other","summary":42},
+        {"sessionId":"one","summary":"new"},
+        {"sessionId":"one","summary":false}
+    ]}"#,
+    )
+    .unwrap();
+    for agent in [Agent::ClaudeCode, Agent::Codex] {
+        assert!(load_session_titles(agent, &roots, &["one".into()]).is_err());
+        let result = load_session_titles_with_options(
+            agent,
+            &roots,
+            &["one".into()],
+            &TitleReadOptions {
+                error_mode: TitleErrorMode::Collect,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(result.titles["one"].text, "new");
+        assert_eq!(result.errors.len(), 2);
+        for error in result.errors {
+            assert_eq!(error.source.kind(), std::io::ErrorKind::InvalidData);
+            assert!(!error.source.to_string().contains("summary"));
+        }
+    }
+}
+
+#[test]
+fn title_limits_are_enforced_and_long_codex_rows_can_be_skipped_explicitly() {
+    let home = tempfile::tempdir().unwrap();
+    let roots = Roots::from_home(home.path());
+    let codex = roots.codex.as_ref().unwrap();
+    let claude = roots.claude.as_ref().unwrap().join("projects/p");
+    fs::create_dir_all(codex).unwrap();
+    fs::create_dir_all(&claude).unwrap();
+    let row = "{\"id\":\"one\",\"thread_name\":\"ok\"}\n";
+    fs::write(
+        codex.join("session_index.jsonl"),
+        format!("{}\n{row}", "x".repeat(100)),
+    )
+    .unwrap();
+    fs::write(
+        claude.join("sessions-index.json"),
+        r#"{"entries":[{"sessionId":"one","summary":"ok"}]}"#,
+    )
+    .unwrap();
+    let options = TitleReadOptions {
+        max_line_bytes: Some(row.len()),
+        error_mode: TitleErrorMode::Collect,
+        ..Default::default()
+    };
+    let result =
+        load_session_titles_with_options(Agent::Codex, &roots, &["one".into()], &options).unwrap();
+    assert_eq!(result.titles["one"].text, "ok");
+    assert_eq!(result.errors.len(), 1);
+    assert_eq!(result.errors[0].line_no, Some(1));
+    for agent in [Agent::ClaudeCode, Agent::Codex] {
+        let options = TitleReadOptions {
+            max_file_bytes: Some(8),
+            ..Default::default()
+        };
+        let error =
+            load_session_titles_with_options(agent, &roots, &["one".into()], &options).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(error.to_string().contains("byte limit"));
+        let result = load_session_titles_with_options(
+            agent,
+            &roots,
+            &["one".into()],
+            &TitleReadOptions {
+                error_mode: TitleErrorMode::Collect,
+                ..options
+            },
+        )
+        .unwrap();
+        assert!(result.titles.is_empty());
+        assert_eq!(result.errors.len(), 1);
+    }
+}
+
+#[test]
+fn title_file_limit_accepts_exact_boundary_and_empty_selection_never_reads() {
+    let home = tempfile::tempdir().unwrap();
+    let roots = Roots::from_home(home.path());
+    let dir = roots.codex.as_ref().unwrap();
+    fs::create_dir_all(dir).unwrap();
+    let row = "{\"id\":\"one\",\"thread_name\":\"ok\"}\n";
+    fs::write(dir.join("session_index.jsonl"), row).unwrap();
+    let options = TitleReadOptions {
+        max_file_bytes: Some(row.len() as u64),
+        max_line_bytes: Some(row.len()),
+        ..Default::default()
+    };
+    let result =
+        load_session_titles_with_options(Agent::Codex, &roots, &["one".into()], &options).unwrap();
+    assert_eq!(result.titles["one"].text, "ok");
+    assert!(result.errors.is_empty());
+    let result = load_session_titles_with_options(
+        Agent::Codex,
+        &roots,
+        &[],
+        &TitleReadOptions {
+            max_file_bytes: Some(0),
+            ..options
+        },
+    )
+    .unwrap();
+    assert!(result.titles.is_empty());
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn collected_title_syntax_errors_are_visible_without_leaking_values() {
+    let home = tempfile::tempdir().unwrap();
+    let roots = Roots::from_home(home.path());
+    let codex = roots.codex.as_ref().unwrap();
+    let projects = roots.claude.as_ref().unwrap().join("projects");
+    fs::create_dir_all(codex).unwrap();
+    fs::create_dir_all(projects.join("bad")).unwrap();
+    fs::create_dir_all(projects.join("good")).unwrap();
+    fs::write(
+        codex.join("session_index.jsonl"),
+        concat!(
+            "{\"id\":\"other\",\"thread_name\": PRIVATE-SENTINEL}\n",
+            "{\"id\":\"one\",\"thread_name\":\"ok\"}\n"
+        ),
+    )
+    .unwrap();
+    fs::write(
+        projects.join("bad/sessions-index.json"),
+        "{\"entries\": PRIVATE-SENTINEL}",
+    )
+    .unwrap();
+    fs::write(
+        projects.join("good/sessions-index.json"),
+        r#"{"entries":[{"sessionId":"one","summary":"ok"}]}"#,
+    )
+    .unwrap();
+    for agent in [Agent::ClaudeCode, Agent::Codex] {
+        let result = load_session_titles_with_options(
+            agent,
+            &roots,
+            &["one".into()],
+            &TitleReadOptions {
+                error_mode: TitleErrorMode::Collect,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(result.titles["one"].text, "ok");
+        assert_eq!(result.errors.len(), 1);
+        assert!(!format!("{:?}", result.errors).contains("PRIVATE-SENTINEL"));
+    }
+}

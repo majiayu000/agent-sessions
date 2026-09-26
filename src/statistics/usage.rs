@@ -12,13 +12,15 @@ use std::borrow::Cow;
 
 #[derive(Deserialize)]
 struct Info<'a> {
+    #[serde(default, deserialize_with = "header::optional_object")]
     total_token_usage: Option<Counters>,
+    #[serde(default, deserialize_with = "header::optional_object")]
     last_token_usage: Option<Counters>,
     #[serde(borrow)]
     model: Option<Cow<'a, str>>,
     #[serde(borrow)]
     model_name: Option<Cow<'a, str>>,
-    #[serde(borrow)]
+    #[serde(default, borrow, deserialize_with = "header::optional_object")]
     metadata: Option<Metadata<'a>>,
 }
 #[derive(Deserialize)]
@@ -39,26 +41,10 @@ struct Counters {
     cache_write_input_tokens: Option<u64>,
     reasoning_output_tokens: Option<u64>,
     total_tokens: Option<u64>,
+    #[serde(default, deserialize_with = "header::optional_object")]
     cache_creation: Option<CacheCreation>,
 }
 impl Counters {
-    fn has_nonzero(&self) -> bool {
-        [
-            self.input_tokens,
-            self.output_tokens,
-            self.cached_input_tokens,
-            self.cache_read_input_tokens,
-            self.cache_write_input_tokens,
-            self.reasoning_output_tokens,
-            self.total_tokens,
-            self.cache_creation
-                .as_ref()
-                .and_then(|c| c.ephemeral_1h_input_tokens),
-        ]
-        .into_iter()
-        .flatten()
-        .any(|n| n > 0)
-    }
     fn counts(self) -> Result<(TokenCounts, Vec<UsageAdjustment>), DecodeError> {
         let counts = TokenCounts {
             input: self.input_tokens,
@@ -98,14 +84,14 @@ pub(super) fn decode(
     state: &mut State,
     opts: &ReadOptions,
     at: Option<DateTime<Utc>>,
-) -> Result<Parsed, DecodeError> {
+) -> Result<Option<Parsed>, DecodeError> {
     let Some(payload) = &h.payload else {
         return Err(DecodeError::Fields(LineErrorKind::MissingField("payload")));
     };
     let Some(raw) = payload.info.filter(|v| v.get() != "null") else {
-        return Ok(Parsed::default());
+        return Ok(None);
     };
-    let info: Info<'_> = serde_json::from_str(raw.get())?;
+    let header::Object(info) = serde_json::from_str::<header::Object<Info<'_>>>(raw.get())?;
     let timestamp = header::string(h.timestamp).ok_or(DecodeError::Fields(
         LineErrorKind::MissingField("timestamp"),
     ))?;
@@ -118,14 +104,7 @@ pub(super) fn decode(
         text(value, field)?;
     }
     let Some(total) = info.total_token_usage else {
-        return Ok(Parsed {
-            ignored_one: info
-                .last_token_usage
-                .as_ref()
-                .filter(|last| last.has_nonzero())
-                .map(|_| (true, Cow::Borrowed(crate::CODEX_MISSING_TOTAL_USAGE))),
-            ..Default::default()
-        });
+        return Ok(None);
     };
     let (total, adjustments) = total.counts()?;
     let last = info.last_token_usage.map(Counters::counts).transpose()?;
@@ -147,12 +126,12 @@ pub(super) fn decode(
         record_type: Some("event_msg".into()),
         ..Default::default()
     };
-    if let Some(mut usage) =
+    let mut usage =
         crate::codex::usage::from_counts(total, last, adjustments, state, opts.accounting)
-            .map_err(DecodeError::Fields)?
-    {
-        crate::codex::usage::apply_model(&mut usage, state, observed.map(Cow::into_owned));
+            .map_err(DecodeError::Fields)?;
+    crate::codex::usage::apply_model(usage.as_mut(), state, observed.map(Cow::into_owned));
+    if let Some(usage) = usage {
         parsed.emit(2, Event::Usage(usage));
     }
-    Ok(parsed)
+    Ok(Some(parsed))
 }

@@ -73,13 +73,6 @@ impl<R: BufRead> Iterator for SessionReader<R> {
                 }
                 Err(DecodeError::Fields(kind)) => return Some(Err(self.line_error(start, kind))),
             };
-            if let Some((known, label)) = &parsed.ignored_one {
-                if *known {
-                    tally(&mut self.summary.ignored_types, label);
-                } else {
-                    tally(&mut self.summary.unknown_types, label);
-                }
-            }
             for unknown in &parsed.unknown {
                 tally(&mut self.summary.unknown_types, unknown);
             }

@@ -42,17 +42,8 @@ fn selective_decode_preserves_selected_events_and_native_metadata() {
                 Err(_) => panic!("valid record rejected"),
             };
             assert_eq!(reference.events, fast.events);
-            let mut unknown = fast.unknown.clone();
-            let mut ignored = fast.ignored.clone();
-            if let Some((known, label)) = &fast.ignored_one {
-                if *known {
-                    ignored.push(label.to_string());
-                } else {
-                    unknown.push(label.to_string());
-                }
-            }
-            assert_eq!(reference.unknown, unknown);
-            assert_eq!(reference.ignored, ignored);
+            assert_eq!(reference.unknown, fast.unknown);
+            assert_eq!(reference.ignored, fast.ignored);
             if !reference.events.is_empty() {
                 assert_eq!(reference.at, fast.at);
                 assert_eq!(reference.timestamp_text, fast.timestamp_text);

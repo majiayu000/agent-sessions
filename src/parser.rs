@@ -21,7 +21,6 @@ pub(crate) struct Parsed {
     pub include: EventKinds,
     pub unknown: Vec<String>,
     pub ignored: Vec<String>,
-    pub ignored_one: Option<(bool, std::borrow::Cow<'static, str>)>,
     pub at: Option<DateTime<Utc>>,
     pub message_id: Option<String>,
 }

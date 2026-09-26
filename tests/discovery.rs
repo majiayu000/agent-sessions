@@ -101,6 +101,30 @@ fn file_read_uses_fresh_size_not_discovery_snapshot() {
 }
 
 #[test]
+fn captured_prefix_budget_matches_file_and_stream_readers() {
+    let tmp = tempfile::NamedTempFile::new().unwrap();
+    let row = "{\"type\":\"user\",\"message\":{\"content\":\"hi\"}}\n";
+    let data = row.repeat(2);
+    fs::write(tmp.path(), &data).unwrap();
+    let file = SessionFile::inspect(Agent::ClaudeCode, tmp.path()).unwrap();
+    let opts = ReadOptions {
+        max_file_bytes: Some(row.len() as u64),
+        stop_at_byte: Some(row.len() as u64),
+        ..Default::default()
+    };
+    let mut from_file = read(&file, &opts).unwrap();
+    let mut from_stream = read_from(Agent::ClaudeCode, std::io::Cursor::new(data), &opts).unwrap();
+    let file_events: Vec<_> = from_file.by_ref().map(Result::unwrap).collect();
+    let stream_events: Vec<_> = from_stream.by_ref().map(Result::unwrap).collect();
+    assert_eq!(file_events, stream_events);
+    assert_eq!(file_events.len(), 1);
+    assert_eq!(
+        serde_json::to_value(from_file.finish()).unwrap(),
+        serde_json::to_value(from_stream.finish()).unwrap()
+    );
+}
+
+#[test]
 fn env_overrides_are_tested_in_isolated_processes() {
     for empty in [false, true] {
         let output = Command::new(std::env::current_exe().unwrap())

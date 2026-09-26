@@ -13,6 +13,8 @@ pub enum TailMode {
 #[derive(Debug, Clone)]
 pub struct ReadOptions {
     pub accounting: crate::AccountingPolicy,
+    /// Byte budget from the start of the source. With stop_at_byte, only that
+    /// captured prefix must fit; bytes beyond it are not read or size-checked.
     pub max_file_bytes: Option<u64>,
     /// Includes the line delimiter. Enforced before allocating the whole line.
     pub max_line_bytes: Option<usize>,

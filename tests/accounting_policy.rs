@@ -159,9 +159,16 @@ fn statistics_outcome(
     value: &serde_json::Value,
     include: EventKinds,
 ) -> (Vec<Located<Event>>, Vec<String>, serde_json::Value) {
+    statistics_stream_outcome(&value.to_string(), include)
+}
+
+fn statistics_stream_outcome(
+    data: &str,
+    include: EventKinds,
+) -> (Vec<Located<Event>>, Vec<String>, serde_json::Value) {
     let mut reader = read_from(
         Agent::Codex,
-        std::io::Cursor::new(value.to_string()),
+        std::io::Cursor::new(data),
         &ReadOptions {
             accounting: AccountingPolicy::UsageStatistics,
             include,
@@ -305,4 +312,124 @@ fn last_usage_without_total_is_observable_without_inventing_usage() {
     .unwrap();
     assert!(reader.next().is_none());
     assert_eq!(reader.finish().ignored_types[CODEX_MISSING_TOTAL_USAGE], 2);
+}
+
+#[test]
+fn statistical_fast_and_general_paths_share_malformed_usage_contract() {
+    for info in [
+        json!({"last_token_usage":{"input_tokens":-1}}),
+        json!({"total_token_usage":{"input_tokens":-1}}),
+        json!({"total_token_usage":{"input_tokens":"bad"}}),
+        json!({"total_token_usage":{"input_tokens":10},"last_token_usage":false}),
+        json!({"total_token_usage":{"input_tokens":10},"metadata":42}),
+        json!({"total_token_usage":{"input_tokens":10},"model":42}),
+        json!({"total_token_usage":[10,null,null,null,null,null,null,null]}),
+        json!({"total_token_usage":{"input_tokens":10,"cache_creation":[1]}}),
+        json!({"total_token_usage":{"input_tokens":10},"metadata":["model"]}),
+        json!([{"input_tokens":10},null,null,null,null]),
+        json!(false),
+        json!(null),
+    ] {
+        for timestamp in [json!("100"), json!("bad"), json!(null)] {
+            let row = json!({"type":"event_msg","timestamp":timestamp,
+                "payload":{"type":"token_count","info":info}});
+            assert_eq!(
+                statistics_outcome(&row, EventKinds::USAGE),
+                statistics_outcome(&row, EventKinds::USAGE.union(EventKinds::MESSAGE)),
+                "{row}"
+            );
+        }
+    }
+}
+
+#[test]
+fn statistical_skipped_envelopes_retain_standard_validation() {
+    for row in [
+        json!({"type":"future","payload":42}),
+        json!(["future", null, null, null, null, null, null]),
+        json!({"type":"future","payload":[null,null,null,null,null,null,null,null,null,null,null,null,null,null]}),
+        json!({"type":"event_msg","payload":{"type":"agent_message","model":42}}),
+        json!({"type":"event_msg","payload":{"type":"token_count","info":null,"model":42}}),
+        json!({"type":"event_msg","payload":{"type":"token_count","model":42}}),
+    ] {
+        assert_eq!(
+            statistics_outcome(&row, EventKinds::USAGE),
+            statistics_outcome(&row, EventKinds::USAGE.union(EventKinds::MESSAGE)),
+            "{row}"
+        );
+    }
+}
+
+#[test]
+fn duplicate_usage_still_updates_model_for_later_samples() {
+    let rows = [
+        json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count",
+            "info":{"model":"model-a","total_token_usage":{"input_tokens":100}}}}),
+        json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count",
+            "info":{"model":"model-b","total_token_usage":{"input_tokens":100}}}}),
+        json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count",
+            "info":{"total_token_usage":{"input_tokens":120}}}}),
+    ];
+    let data = rows
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+    for accounting in [AccountingPolicy::Strict, AccountingPolicy::UsageStatistics] {
+        for include in [
+            EventKinds::USAGE,
+            EventKinds::USAGE.union(EventKinds::MESSAGE),
+        ] {
+            let mut reader = read_from(
+                Agent::Codex,
+                Cursor::new(&data),
+                &ReadOptions {
+                    accounting,
+                    include,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let events: Vec<_> = reader.by_ref().map(Result::unwrap).collect();
+            assert!(reader.finish().is_complete());
+            assert_eq!(events.len(), 2);
+            let Event::Usage(usage) = &events[1].value else {
+                panic!("usage")
+            };
+            assert_eq!(usage.counts.input, Some(20));
+            assert_eq!(usage.model.as_deref(), Some("model-b"));
+        }
+    }
+}
+
+#[test]
+fn statistical_field_errors_preserve_model_and_baseline_recovery() {
+    let data = [
+        json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count",
+            "info":{"model":"model-a","total_token_usage":{"input_tokens":100}}}}),
+        json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count",
+            "info":{"model":"model-b","total_token_usage":{"input_tokens":-1}}}}),
+        json!({"type":"event_msg","timestamp":"100","payload":{"type":"token_count",
+            "info":{"total_token_usage":{"input_tokens":120}}}}),
+    ]
+    .iter()
+    .map(ToString::to_string)
+    .collect::<Vec<_>>()
+    .join("\n");
+    let fast = statistics_stream_outcome(&data, EventKinds::USAGE);
+    let general = statistics_stream_outcome(&data, EventKinds::USAGE.union(EventKinds::MESSAGE));
+    assert_eq!(fast, general);
+    assert_eq!(fast.1.len(), 1);
+    assert!(fast.1[0].contains("InvalidField(\"input_tokens\")"));
+    assert_eq!(fast.2["status"], "CompleteWithErrors");
+    let Event::Usage(usage) = &fast.0[1].value else {
+        panic!("usage")
+    };
+    assert_eq!(usage.counts.input, Some(20));
+    assert_eq!(usage.model.as_deref(), Some("model-a"));
+    assert!(
+        usage
+            .adjustments
+            .contains(&UsageAdjustment::UncertainCumulativeBaseline)
+    );
 }

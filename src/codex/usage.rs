@@ -154,13 +154,13 @@ pub(super) fn response(p: &Value, state: &State) -> Result<Usage, LineErrorKind>
     })
 }
 
-pub(crate) fn apply_model(usage: &mut Usage, state: &mut State, observed: Option<String>) {
-    if let Some(model) = observed {
-        if state.model.as_deref() != Some(model.as_str()) {
-            state.model = Some(model.clone());
-        }
-        usage.model = Some(model);
-    } else {
+pub(crate) fn apply_model(usage: Option<&mut Usage>, state: &mut State, observed: Option<String>) {
+    if let Some(model) = observed
+        && state.model.as_deref() != Some(model.as_str())
+    {
+        state.model = Some(model);
+    }
+    if let Some(usage) = usage {
         usage.model = state.model.clone();
     }
 }

@@ -128,8 +128,9 @@ pub(crate) fn parse(
                         p.ignored.push(crate::CODEX_MISSING_TOTAL_USAGE.into());
                     }
                     let observed_model = model(payload);
-                    if let Some(mut u) = usage::token_count(payload, state, p.accounting)? {
-                        usage::apply_model(&mut u, state, observed_model);
+                    let mut usage = usage::token_count(payload, state, p.accounting)?;
+                    usage::apply_model(usage.as_mut(), state, observed_model);
+                    if let Some(u) = usage {
                         p.emit(2, Event::Usage(u));
                     }
                 }
