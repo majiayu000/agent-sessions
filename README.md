@@ -8,15 +8,12 @@ an event back to its original record.
 
 [crates.io](https://crates.io/crates/agent-sessions) ·
 [API docs](https://docs.rs/agent-sessions) ·
+[Claude Code & Codex JSONL format reference](docs/formats.md) ·
 [GitHub releases](https://github.com/majiayu000/agent-sessions/releases)
 
 The reader bounds file and line sizes, reports malformed records, and keeps
 source provenance. Callers decide their own accounting, filtering and archive
 commit policies.
-
-[Crates.io](https://crates.io/crates/agent-sessions) ·
-[API docs](https://docs.rs/agent-sessions) ·
-[Claude Code & Codex JSONL format reference](docs/formats.md)
 
 Used by [ccstats](https://github.com/majiayu000/ccstats/pull/190),
 [Keepline](https://github.com/majiayu000/keepline/pull/116),
@@ -50,7 +47,7 @@ Claude cache counters, history timestamps, and incomplete JSONL tails.
 
 ```toml
 [dependencies]
-agent-sessions = "0.2.0"
+agent-sessions = "0.2.1"
 ```
 
 ```rust
