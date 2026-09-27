@@ -22,15 +22,15 @@
 | T0 | 本库：统一规划与契约 | 核对原始 v2、当前实现、所有消费者调用点；确定兼容边界 | 完成 a7d6250 |
 | T1 | 本库：增量原始读取、history、标题索引、前缀消费 | 精确保真/偏移/截断、历史条目计数、索引来源、首个文本块测试；fmt/check/test/clippy/MSRV | 完成 bd21d7b |
 | T2 | ccstats：weekly-reserve 上游化 | 补丁逐项核对，额度估算与 SDK 回归通过；Grok 补丁已有实现不重复加入 | 完成 d3de1f3 |
-| T3 | ccstats：共享解析迁移 | Claude/Codex usage/tools/discovery 改用本库；保留标题索引契约；报表/缓存/冷启动基线对比，全量测试 | 本地实现/验证完成，待统一发布 |
-| T4 | quotabar：正式 SDK 接入 | 所需 SDK 已发布或明确可验证候选；去 vendor 后 Rust/TS 测试与界面数据契约通过 | 本地完成 6412318；待 registry/上游发布 |
-| T5 | remem | 保留 raw 身份/完整性/过滤边界；spec 在先；focused/full tests、隔离导入 smoke、版本同步/preflight | PR #1091 已合并 91e3ee0，#1090 已关闭；PR/main CI 与 native 全绿；0.6.98 GitHub/crates.io/Homebrew 已发布；npm/MCP 注册待认证修复 |
-| T6 | refine | 公开 CLI 保持 Remem-only；迁移保留的 local library API；内部 legacy 分支未公开；workspace tests | 本地完成 4c3793b；PR #229，含安全锁更新 15677a8 和 CLI 文档修正 76140ff |
-| T7 | ccp | 保留 64 KiB 前缀预算、首个文本块、100 字符预览、排序/UUID 规则；cargo test | 完成 511be68，PR #11 CI 通过；待合并 |
-| T8 | chat-archive-rs | 仅抽取可共享的 raw framing/discovery；原文哈希、偏移恢复、未知记录/坏行保持原契约；cargo test | 完成 095eb20 / 23bfdaa；PR #29；仓库无 CI，全部本地门槛通过 |
+| T3 | ccstats：共享解析迁移 | Claude/Codex usage/tools/discovery 改用本库；保留标题索引契约；报表/缓存/冷启动基线对比，全量测试 | PR #190 已合并 8026edb；0.9.0 已发布，正式发布流程通过 |
+| T4 | quotabar：正式 SDK 接入 | 所需 SDK 已发布或明确可验证候选；去 vendor 后 Rust/TS 测试与界面数据契约通过 | PR #188/#189 已合并；0.5.4 已公开发布，macOS App/DMG 签名与公证核验通过 |
+| T5 | remem | 保留 raw 身份/完整性/过滤边界；spec 在先；focused/full tests、隔离导入 smoke、版本同步/preflight | PR #1091 已合并 91e3ee0，#1090 已关闭；PR/main CI 与 native 全绿；0.6.98 GitHub/crates.io/Homebrew/npm 已发布；MCP 注册完成，release 全绿 |
+| T6 | refine | 公开 CLI 保持 Remem-only；迁移保留的 local library API；内部 legacy 分支未公开；workspace tests | PR #229 已合并 dce9e90；workspace 与会话测试、CI 通过 |
+| T7 | ccp | 保留 64 KiB 前缀预算、首个文本块、100 字符预览、排序/UUID 规则；cargo test | PR #11 已合并 1c079a6；48 tests、真实摘要/usage 对比与 CI 通过 |
+| T8 | chat-archive-rs | 仅抽取可共享的 raw framing/discovery；原文哈希、偏移恢复、未知记录/坏行保持原契约；cargo test | PR #29 已合并 283fac8；仓库无 CI，29 tests 与原文/偏移/哈希核验通过 |
 | T9 | keepline / TS 文档 | Rust history 读取迁移，保留历史条目计数与错误显示；Rust/相关 TS checks；共享格式/fixture 文档 | PR #116/#117/#118/#119 已合并；桌面版 1.1.4 已公开发布，三平台构建及 macOS App/DMG 公证核验完成 |
-| T10 | life-looper | ccstats CLI 版本/JSON/时区/范围/错误/超时/配置定价契约成立；Go tests；不再自行解析或硬编码降级价格 | 完成f832912，PR1；release CLI联测通过，待合并/依赖发布 |
-| T11 | 交付与发布 | crates/GitHub 发布链、消费方依赖 lockfile、PR/CI、迁移证据汇总；真实状态逐仓列明 | 8 个消费仓库迁移 PR 已全部合并；agent-sessions 0.2.0、ccstats 0.9.0、QuotaBar 0.5.4、Keepline 1.1.4 已发布；remem 0.6.98 已发布到 GitHub/crates.io/Homebrew；npm/MCP 注册待认证修复 |
+| T10 | life-looper | ccstats CLI 版本/JSON/时区/范围/错误/超时/配置定价契约成立；Go tests；不再自行解析或硬编码降级价格 | PR #1 已合并 231caee；正式 ccstats CLI 联测通过，新 Looper 已安装，服务未启动 |
+| T11 | 交付与发布 | crates/GitHub 发布链、消费方依赖 lockfile、PR/CI、迁移证据汇总；真实状态逐仓列明 | 8 个消费仓库迁移 PR 已全部合并；agent-sessions 0.2.0、ccstats 0.9.0、QuotaBar 0.5.4、Keepline 1.1.4 已发布；remem 0.6.98 已发布到 GitHub/crates.io/Homebrew/npm，MCP 注册完成；本批交付完成 |
 
 ## 已确定的设计选择
 

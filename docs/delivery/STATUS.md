@@ -17,7 +17,7 @@
 | life-looper | [PR1](https://github.com/majiayu000/life-looper/pull/1)，已合并 231caee；候选发布版CLI已联测 | Go premerge、3Node渲染回归、真实CLI的范围/价格/告警联测 | 完成；实际 CLI 联测通过，新 Looper 已安装，服务保持未启动 |
 | quotabar | PR188/PR189 已合并；[v0.5.4](https://github.com/majiayu000/quotabar/releases/tag/v0.5.4) 已公开发布 | 四平台正式构建通过；五个安装包及校验文件哈希一致；两种 macOS DMG 与 App 的签名、公证票据、Gatekeeper 核验通过 | 完成 |
 | keepline | PR116/117/118/119 已合并；[v1.1.4](https://github.com/majiayu000/keepline/releases/tag/v1.1.4) 已公开发布 | 修复 npm/Tauri 依赖漂移和 DMG 公证；三平台构建与发布任务全绿；四个公开附件哈希及两种 macOS App/DMG 核验通过 | 完成；1.1.3 保留为注明包装问题的预发布，旧标签未删除 |
-| remem | [PR1091](https://github.com/majiayu000/remem/pull/1091) 已合并 91e3ee0；#1090 已关闭；v0.6.98 标签已创建 | 最终 PR head a6b25c43、main CI、四平台 native 与 Windows 安全检查通过；修复 HTTP 测试分段读取，并把 graph/native 证据绑定 v093 | GitHub、crates.io、Homebrew 0.6.98 已发布；npm 发布认证失败，MCP 注册因此跳过，待凭证修复后重跑 |
+| remem | [PR1091](https://github.com/majiayu000/remem/pull/1091) 已合并 91e3ee0；#1090 已关闭；[v0.6.98](https://github.com/majiayu000/remem/releases/tag/v0.6.98) 已发布 | 最终 PR head a6b25c43、main CI、四平台 native 与 Windows 安全检查通过；修复 HTTP 测试分段读取，并把 graph/native 证据绑定 v093 | 完成；GitHub、crates.io、Homebrew、npm 0.6.98 已发布，MCP 注册为 active/latest；[release 36286249536](https://github.com/majiayu000/remem/actions/runs/36286249536) 全绿 |
 
 ## 性能与数据清理
 
@@ -32,6 +32,6 @@
 
 ## 当前授权边界
 
-2026-09-26 用户明确回复“这样做”，已批准本批合并、发布及本机 ccstats 更新；当前进入按依赖顺序执行阶段。任何未通过依赖、当前head CI和review gates的仓库都不会因授权而跳过门槛。
+2026-09-26 用户明确回复“这样做”，已批准本批合并、发布及本机 ccstats 更新；本批合并与发布已于 2026-09-27 完成。任何未通过依赖、当前head CI和review gates的仓库都不会因授权而跳过门槛。
 
 详细过程与限制见WORKLOG.md；匿名结果在evidence/。
