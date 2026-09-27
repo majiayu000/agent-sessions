@@ -47,7 +47,7 @@ Claude cache counters, history timestamps, and incomplete JSONL tails.
 
 ```toml
 [dependencies]
-agent-sessions = "0.2.1"
+agent-sessions = "0.2.2"
 ```
 
 ```rust
