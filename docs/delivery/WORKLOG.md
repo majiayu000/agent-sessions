@@ -305,3 +305,11 @@ Remem full migration checks found two fixture-only adjustments: a deliberately m
 Signed artifact release gates exposed two existing workflow defects. QuotaBar v0.5.3 run36229182600: application notarization/signature/Gatekeeper checks passed, but the DMG had only been signed; stapler reported CloudKit Record not found/Error65. Follow-up1deff8b/PR189 submits the DMG separately, requires Accepted, retries bounded ticket propagation, keeps final Gatekeeper verification, and stages0.5.4. Independent review, releasecheck,6 version tests,YAML/bash checks and5 mocked failure/retry cases passed. v0.5.3 tag retained, no public release published.
 
 Keepline v1.1.1 run36229553741 failed all3 targets because tauri-action detected bun.lock and tried unavailable Bun. Follow-up9d4f85f explicitly sets tauriScript=npm run tauri using the existing npm installation, keeps signing/notarization unchanged, and stages1.1.2. actionlint and three Bun-free CLI startup checks passed; this is not signed packaging proof. v1.1.1 tag retained; fresh PR/main/release gates remain required.
+
+## 2026-09-27 — remote merge closure verified
+
+Fresh GitHub and git evidence confirms remem #1091 merged as 91e3ee0ea53ae9e1206c6a4e9dd4f4a19bb94c4f, final PR head a6b25c43109674df349e59fccd821a10923dd6a8. Issue #1090 is closed and the PR has no review threads. Exact-head CI 36261396855 and 36276102336 passed, as did native run 36261396910 and merged-main CI 36275965029. The final integration also binds graph-decision evidence to v093 through f97e85e3 and refreshed native receipts.
+
+The local 5ad66085 evidence commit was independently reviewed and retained, but was not pushed: the remote had independently advanced through 2aac8286, f97e85e3 and a6b25c43. Do not push that stale local candidate over the merged remote history. Temporary execution sessions/logs disappeared after the environment reset; final verification claims rely on fresh exact-head/main CI, not an unobserved local preflight completion. Original dirty main checkout remains preserved.
+
+Auto Release 36286235775 passed and created v0.6.98 at the merged SHA. Release 36286249536 is running; all four binary builds have passed, while publication/channel jobs still need final confirmation.
