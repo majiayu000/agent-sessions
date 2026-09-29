@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.2 (unreleased)
+## 0.2.2 (2026-09-27)
 
 - Align the Codex statistics fast path with the canonical parser, including error
   kinds, ignored-record validation, and cumulative usage recovery.

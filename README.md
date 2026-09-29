@@ -21,9 +21,9 @@ Used by [ccstats](https://github.com/majiayu000/ccstats/pull/190),
 [ccp](https://github.com/majiayu000/ccp/pull/11), and
 [chat-archive-rs](https://github.com/majiayu000/chat-archive-rs/pull/29).
 [QuotaBar](https://github.com/majiayu000/quotabar/pull/188) uses it through ccstats.
-These links point to merged integrations; the
-[Remem migration](https://github.com/majiayu000/remem/pull/1091) is still in review
-(as of 2026-09-26).
+These links point to merged integrations.
+[Remem](https://github.com/majiayu000/remem/pull/1091) also uses the shared reader
+for transcript ingestion.
 
 ### Why share a parser?
 
