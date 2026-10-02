@@ -67,6 +67,45 @@ assert!(summary.is_complete());
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+### Run a complete example
+
+Clone this repository and run a report with the bundled synthetic Codex session:
+
+```sh
+git clone https://github.com/majiayu000/agent-sessions.git
+cd agent-sessions
+cargo run --locked --example summarize_codex
+```
+
+```json
+{
+  "input_tokens": 150,
+  "messages": 2,
+  "output_tokens": 30,
+  "status": "Complete",
+  "usage_events": 2
+}
+```
+
+The [example](examples/summarize_codex.rs) reads messages and usage events,
+checks the final read status, and sums usage deltas. The fixture includes a
+repeated cumulative counter; it is not counted twice. No account or API key is
+required, and the default command does not read your local sessions.
+
+To read one of your own Codex JSONL files, pass its path:
+
+```sh
+cargo run --locked --example summarize_codex -- /path/to/session.jsonl
+```
+
+Only aggregate counts are printed. This example selects the default Codex
+`token_count` ledger; response-only logs have no selected usage and produce
+`null` totals. Missing counters also stay `null`. Native input includes cache
+tokens and native output includes reasoning tokens; do not add those subsets
+again. Malformed or unknown records fail without printing a successful report.
+This is a single-file example, without cross-file deduplication or dollar pricing.
+For those application policies, see [ccstats](https://github.com/majiayu000/ccstats).
+
 ## Discovery and events
 
 `Roots::from_env()` honors `CLAUDE_CONFIG_DIR` and `CODEX_HOME`, falling back to
