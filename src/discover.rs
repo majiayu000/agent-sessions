@@ -178,7 +178,7 @@ fn scan_directory(
                 if filter.include_subagents || entry.file_name() != "subagents" {
                     pending.push((path, false));
                 }
-            } else if ty.is_file() && path.extension().is_some_and(|e| e == "jsonl") {
+            } else if ty.is_file() && is_session_path(agent, &path) {
                 match SessionFile::inspect(agent, &path) {
                     Ok(file)
                         if filter.modified_after.is_none_or(|t| file.modified >= t)
@@ -198,9 +198,76 @@ fn scan_directory(
         }
     }
 }
+
+fn is_session_path(agent: Agent, path: &Path) -> bool {
+    let name = path.file_name().and_then(|v| v.to_str()).unwrap_or("");
+    let ext = path.extension().and_then(|v| v.to_str()).unwrap_or("");
+    match agent {
+        Agent::ClaudeCode | Agent::Codex | Agent::Pi | Agent::CodeBuddy | Agent::IFlow => {
+            ext == "jsonl"
+        }
+        Agent::QwenCode => {
+            ext == "jsonl"
+                && path
+                    .parent()
+                    .and_then(Path::file_name)
+                    .is_some_and(|v| v == "chats")
+        }
+        Agent::GeminiCli => name.starts_with("session-") && matches!(ext, "json" | "jsonl"),
+        Agent::KimiCli => name == "wire.jsonl",
+        Agent::CopilotCli => name == "events.jsonl",
+        Agent::Cline | Agent::RooCode => name == "api_conversation_history.json",
+        Agent::OpenCode => matches!(ext, "json" | "db"),
+        Agent::Goose => matches!(ext, "json" | "db"),
+        Agent::Continue => ext == "json" && name != "sessions.json",
+        Agent::Cursor => name == "state.vscdb",
+        Agent::Grok => name == "updates.jsonl",
+        Agent::ClineCli => name.ends_with(".messages.json"),
+        Agent::Hermes => name == "state.db" || (name.starts_with("session_") && ext == "json"),
+        Agent::WorkBuddy => {
+            ext == "jsonl"
+                && !path
+                    .components()
+                    .any(|p| matches!(p.as_os_str().to_str(), Some("audit-log" | "logs")))
+        }
+        Agent::Qoder => ext == "jsonl" && !path.components().any(|p| p.as_os_str() == "logs"),
+        Agent::ZCode => name == "db.sqlite",
+        Agent::GrokBot => ext == "blob" && grokbot_transcript_name(path),
+        Agent::CursorCli => name == "store.db",
+        Agent::Zed => name == "threads.db" || ext == "json",
+        Agent::Warp => name == "warp.sqlite",
+        Agent::Antigravity => name.ends_with(".trajectory.json"),
+    }
+}
 fn sort_files(result: &mut Discovery) {
     result.files.sort_by(|a, b| a.path.cmp(&b.path));
     result
         .files
         .dedup_by(|a, b| a.path == b.path && a.agent == b.agent);
+}
+
+// Grok Bot filenames are the unpadded RFC 4648 base32 persistence keys.
+// Select transcript replicas without opening unrelated account/settings blobs.
+fn grokbot_transcript_name(path: &Path) -> bool {
+    let Some(stem) = path.file_stem().and_then(|v| v.to_str()) else {
+        return false;
+    };
+    let mut bits = 0_u32;
+    let mut count = 0_u32;
+    let mut bytes = Vec::new();
+    for byte in stem.bytes() {
+        let n = match byte.to_ascii_uppercase() {
+            b'A'..=b'Z' => byte.to_ascii_uppercase() - b'A',
+            b'2'..=b'7' => byte - b'2' + 26,
+            _ => return false,
+        };
+        bits = (bits << 5) | u32::from(n);
+        count += 5;
+        if count >= 8 {
+            count -= 8;
+            bytes.push((bits >> count) as u8);
+            bits &= (1 << count) - 1;
+        }
+    }
+    String::from_utf8(bytes).is_ok_and(|v| v.contains(".transcript.replicas."))
 }

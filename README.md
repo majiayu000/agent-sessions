@@ -1,7 +1,13 @@
 # agent-sessions
 
-`agent-sessions` is a Rust library for reading Claude Code and Codex JSONL
-session files. It discovers local sessions and streams messages, tool calls,
+`agent-sessions` is a Rust library for reading local coding-agent sessions.
+It reads Claude Code and Codex JSONL, with native adapters for Gemini CLI,
+Qwen Code, Kimi CLI, Pi, Copilot CLI, CodeBuddy, iFlow, OpenCode, Cline,
+Roo Code, Goose, Continue, Cursor, Grok Build, Cline CLI, Hermes Agent,
+WorkBuddy, Qoder, ZCode, Grok Bot, Cursor Agent CLI, Zed, Warp and Antigravity. The [support matrix](docs/support.md)
+specifies the implemented formats, per-agent verification status, omissions and remaining gaps;
+this is not a claim of compatibility with every version of every agent.
+It discovers local sessions and streams messages, tool calls,
 usage and metadata as typed events with timestamps and source offsets. Use it
 to build usage reports, searchable archives or other tools that need to trace
 an event back to its original record.
@@ -11,9 +17,22 @@ an event back to its original record.
 [Claude Code & Codex JSONL format reference](docs/formats.md) ·
 [GitHub releases](https://github.com/majiayu000/agent-sessions/releases)
 
+JSON/patch-based sessions use `import_session`; native OpenCode, Goose, Hermes,
+Cursor, Cursor Agent CLI, ZCode, Zed and Warp SQLite sessions use read-only
+`import_database`. Antigravity uses a full trajectory export from its native
+language service; [the exporter](examples/export_antigravity.py) reads the running
+macOS app without making a model request. Imported events retain
+JSON pointers, physical record locations or database row keys. Check
+`summary.is_supported()` and the documented omissions before treating an import
+as complete. [Aggregate-only examples](docs/support.md#使用方式与完整性) cover each API.
+
 The reader bounds file and line sizes, reports malformed records, and keeps
 source provenance. Callers decide their own accounting, filtering and archive
 commit policies.
+
+Live end-to-end tests launch real Codex, Grok Build and OpenCode clients, complete
+a file task, then verify their newly persisted native sessions. Run them explicitly
+with existing client authentication; see [live acceptance](docs/support.md#可重复的真实客户端端到端测试).
 
 Used by [ccstats](https://github.com/majiayu000/ccstats/pull/190),
 [Keepline](https://github.com/majiayu000/keepline/pull/116),
@@ -47,7 +66,7 @@ Claude cache counters, history timestamps, and incomplete JSONL tails.
 
 ```toml
 [dependencies]
-agent-sessions = "0.2.2"
+agent-sessions = "0.3.0"
 ```
 
 ```rust
@@ -201,7 +220,8 @@ counted separately from unknown types. Summaries never contain message text.
 
 ## Development
 
-Rust 1.88+; synchronous IO; no network or database dependency.
+Rust 1.88+; synchronous IO; no runtime network dependency. Native database readers
+use bundled SQLite in read-only transactions.
 
 ```sh
 cargo +1.95.0 fmt --check

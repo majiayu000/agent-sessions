@@ -123,6 +123,12 @@ pub fn load_session_titles_with_options(
                 }
             }
         }
+        _ => {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "no native title-index reader for this agent",
+            ));
+        }
     }
     Ok(result)
 }

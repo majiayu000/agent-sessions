@@ -1,9 +1,9 @@
 [package]
 name = "agent-sessions"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.88"
-description = "Stream Claude Code and Codex JSONL sessions as typed Rust events with source offsets"
+description = "Read native coding-agent sessions as typed Rust events with source provenance"
 license = "MIT"
 repository = "https://github.com/majiayu000/agent-sessions"
 homepage = "https://github.com/majiayu000/agent-sessions"
@@ -17,6 +17,10 @@ exclude = ["PLAN.md", "fuzz/**", ".github/**", "docs/delivery/**", "docs/researc
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 memchr = "2"
+rusqlite = { version = "0.37", features = ["bundled"] }
+prost-reflect = { version = "0.16", features = ["serde"] }
+zstd = "0.13"
+base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
 
 [dev-dependencies]

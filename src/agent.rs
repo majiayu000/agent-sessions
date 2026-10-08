@@ -5,6 +5,88 @@ use serde::{Deserialize, Serialize};
 pub enum Agent {
     ClaudeCode,
     Codex,
+    GeminiCli,
+    QwenCode,
+    KimiCli,
+    Pi,
+    CopilotCli,
+    CodeBuddy,
+    IFlow,
+    OpenCode,
+    Cline,
+    RooCode,
+    Goose,
+    Continue,
+    Cursor,
+    Grok,
+    ClineCli,
+    Hermes,
+    WorkBuddy,
+    Qoder,
+    ZCode,
+    GrokBot,
+    CursorCli,
+    Zed,
+    Warp,
+    Antigravity,
+}
+
+impl Agent {
+    /// Sources implemented by this version. See docs/support.md for format scope.
+    pub const SUPPORTED: &'static [Self] = &[
+        Self::ClaudeCode,
+        Self::Codex,
+        Self::GeminiCli,
+        Self::QwenCode,
+        Self::KimiCli,
+        Self::Pi,
+        Self::CopilotCli,
+        Self::CodeBuddy,
+        Self::IFlow,
+        Self::OpenCode,
+        Self::Cline,
+        Self::RooCode,
+        Self::Goose,
+        Self::Continue,
+        Self::Cursor,
+        Self::Grok,
+        Self::ClineCli,
+        Self::Hermes,
+        Self::WorkBuddy,
+        Self::Qoder,
+        Self::ZCode,
+        Self::GrokBot,
+        Self::CursorCli,
+        Self::Zed,
+        Self::Warp,
+        Self::Antigravity,
+    ];
+
+    pub(crate) fn streaming(self) -> bool {
+        matches!(
+            self,
+            Self::ClaudeCode
+                | Self::Codex
+                | Self::QwenCode
+                | Self::KimiCli
+                | Self::Pi
+                | Self::CopilotCli
+                | Self::CodeBuddy
+                | Self::IFlow
+                | Self::WorkBuddy
+                | Self::Qoder
+        )
+    }
+}
+
+/// Select one Codex content representation when both are present.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CodexContentMode {
+    #[default]
+    /// Use session_meta.history_mode; absent metadata means legacy history.
+    Auto,
+    ResponseItems,
+    CompletedItems,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

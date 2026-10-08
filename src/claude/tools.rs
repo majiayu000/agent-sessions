@@ -37,6 +37,7 @@ pub(super) fn parse(content: &Value, p: &mut Parsed) -> Result<(), LineErrorKind
                         call_id: string(b, "tool_use_id"),
                         is_error: b.get("is_error").and_then(Value::as_bool),
                         text: body,
+                        output: None,
                     }),
                 );
             }

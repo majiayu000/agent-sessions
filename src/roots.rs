@@ -33,6 +33,12 @@ impl Roots {
         let (key, suffix) = match agent {
             Agent::ClaudeCode => ("CLAUDE_CONFIG_DIR", ".claude"),
             Agent::Codex => ("CODEX_HOME", ".codex"),
+            _ => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Unsupported,
+                    "use discover_directory with an explicit native session root",
+                ));
+            }
         };
         let path = match std::env::var_os(key) {
             Some(v) if v.is_empty() => {
@@ -53,6 +59,7 @@ impl Roots {
                 claude: None,
                 codex: path,
             },
+            _ => unreachable!("unsupported agents returned above"),
         })
     }
 }

@@ -199,6 +199,28 @@ pub fn project_transcript(agent: Agent, v: &Value) -> TranscriptProjection {
             }
             _ => {}
         },
+        _ => {
+            let mut state = crate::parser::State::default();
+            let mut parsed = crate::parser::Parsed {
+                include: crate::EventKinds::MESSAGE.union(crate::EventKinds::META),
+                ..Default::default()
+            };
+            if crate::adapters::parse(agent, v, &mut state, &mut parsed).is_ok() {
+                for (_, event) in parsed.events {
+                    match event {
+                        crate::Event::Message(message) => {
+                            return TranscriptProjection {
+                                message: Some(message),
+                                meta,
+                                at: parsed.at.or(at),
+                            };
+                        }
+                        crate::Event::Meta(update) => meta = update,
+                        _ => {}
+                    }
+                }
+            }
+        }
     }
     let message =
         candidate

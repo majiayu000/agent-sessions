@@ -46,11 +46,19 @@ pub fn read_from<R: BufRead>(
     opts: &ReadOptions,
 ) -> Result<SessionReader<R>, ReadError> {
     opts.validate()?;
+    if !agent.streaming() {
+        return Err(ReadError::InvalidOptions(
+            "use import_session for this source format",
+        ));
+    }
     Ok(SessionReader {
         source,
         agent,
         opts: opts.clone(),
-        state: State::default(),
+        state: State {
+            codex_content: opts.codex_content,
+            ..Default::default()
+        },
         summary: ReadSummary::default(),
         pending: VecDeque::new(),
         ended: false,

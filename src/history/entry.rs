@@ -22,6 +22,11 @@ pub fn history_entry(agent: Agent, v: &Value, strict: bool) -> Result<HistoryEnt
     let (id_key, text_key, time_key) = match agent {
         Agent::ClaudeCode => ("sessionId", "display", "timestamp"),
         Agent::Codex => ("session_id", "text", "ts"),
+        _ => {
+            return Err(LineErrorKind::InvalidField(
+                "unsupported history format".into(),
+            ));
+        }
     };
     let mut field = |key: &str| match v.get(key) {
         None | Some(Value::Null) => None,
@@ -40,6 +45,7 @@ pub fn history_entry(agent: Agent, v: &Value, strict: bool) -> Result<HistoryEnt
             let at = t.as_i64().and_then(|n| match agent {
                 Agent::ClaudeCode => DateTime::from_timestamp_millis(n),
                 Agent::Codex => DateTime::from_timestamp(n, 0),
+                _ => None,
             });
             if at.is_none() {
                 invalid_fields.push(time_key.into());

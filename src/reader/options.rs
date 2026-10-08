@@ -22,6 +22,7 @@ pub struct ReadOptions {
     pub include: EventKinds,
     pub tail: TailMode,
     pub codex_usage: CodexUsageMode,
+    pub codex_content: crate::CodexContentMode,
 }
 impl Default for ReadOptions {
     fn default() -> Self {
@@ -32,6 +33,7 @@ impl Default for ReadOptions {
             include: EventKinds::ALL,
             tail: TailMode::Strict,
             codex_usage: CodexUsageMode::TokenCount,
+            codex_content: crate::CodexContentMode::Auto,
             accounting: crate::AccountingPolicy::Strict,
         }
     }
@@ -71,5 +73,10 @@ pub struct ReadSummary {
 impl ReadSummary {
     pub fn is_complete(&self) -> bool {
         self.status == ReadStatus::Complete
+    }
+    /// Clean source read with no unrecognized selected record/content types.
+    /// Deliberate omissions remain in ignored_types; consult the support contract.
+    pub fn is_supported(&self) -> bool {
+        self.is_complete() && self.unknown_types.is_empty()
     }
 }

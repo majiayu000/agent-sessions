@@ -3,7 +3,7 @@ use serde_json::Value;
 
 pub(crate) fn validate(agent: Agent, v: &Value) -> Result<(), LineErrorKind> {
     let fields: &[&str] = match agent {
-        Agent::ClaudeCode => &[
+        Agent::ClaudeCode | Agent::CodeBuddy | Agent::IFlow => &[
             "/message/id",
             "/message/model",
             "/message/stop_reason",
@@ -18,6 +18,7 @@ pub(crate) fn validate(agent: Agent, v: &Value) -> Result<(), LineErrorKind> {
             "/payload/info/model_name",
             "/payload/info/metadata/model",
         ],
+        _ => &[],
     };
     for path in fields {
         if v.pointer(path)
@@ -27,8 +28,9 @@ pub(crate) fn validate(agent: Agent, v: &Value) -> Result<(), LineErrorKind> {
         }
     }
     let objects: &[&str] = match agent {
-        Agent::ClaudeCode => &["/message"],
+        Agent::ClaudeCode | Agent::CodeBuddy | Agent::IFlow => &["/message"],
         Agent::Codex => &["/payload/info/metadata"],
+        _ => &[],
     };
     for path in objects {
         if v.pointer(path)

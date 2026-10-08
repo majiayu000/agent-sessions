@@ -27,6 +27,8 @@ pub enum ReadError {
     Io(io::Error),
     TooLarge { limit: u64 },
     InvalidOptions(&'static str),
+    Format(LineErrorKind),
+    Database(rusqlite::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -65,6 +67,8 @@ impl fmt::Display for ReadError {
             Self::Io(_) => write!(f, "cannot open session file"),
             Self::TooLarge { limit } => write!(f, "session exceeds {limit} byte limit"),
             Self::InvalidOptions(msg) => write!(f, "invalid read options: {msg}"),
+            Self::Format(kind) => write!(f, "invalid session format: {kind:?}"),
+            Self::Database(_) => write!(f, "cannot read session database"),
         }
     }
 }
@@ -72,6 +76,7 @@ impl std::error::Error for ReadError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(e) => Some(e),
+            Self::Database(e) => Some(e),
             _ => None,
         }
     }

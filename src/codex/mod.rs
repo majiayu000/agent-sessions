@@ -19,6 +19,16 @@ pub(crate) fn parse(
                 .filter(|v| v.is_object())
                 .ok_or(LineErrorKind::MissingField("payload"))?;
             let session_id = if kind == "session_meta" {
+                state.codex_paginated = match payload.get("history_mode") {
+                    None => false,
+                    Some(Value::String(mode)) if mode == "legacy" => false,
+                    Some(Value::String(mode)) if mode == "paginated" => true,
+                    Some(Value::String(mode)) => {
+                        p.unknown.push(format!("history_mode:{mode}"));
+                        false
+                    }
+                    _ => return Err(LineErrorKind::InvalidField("history_mode".into())),
+                };
                 string(payload, "id")
             } else {
                 None
@@ -59,11 +69,25 @@ pub(crate) fn parse(
             let payload = v
                 .get("payload")
                 .ok_or(LineErrorKind::MissingField("payload"))?;
-            let ty = required(payload, "type")?;
+            // Early rollouts omitted payload.type for assistant text.
+            let legacy = payload.get("type").is_none() && payload.get("content").is_some();
+            let ty = if legacy {
+                "message"
+            } else {
+                required(payload, "type")?
+            };
             p.message_id = string(payload, "id");
+            if state.codex_completed() {
+                p.ignored.push(format!("response_item:{ty}"));
+                return Ok(());
+            }
             match ty {
                 "message" if p.wants(EventKinds::MESSAGE) => {
-                    let r = required(payload, "role")?;
+                    let r = if legacy {
+                        "assistant"
+                    } else {
+                        required(payload, "role")?
+                    };
                     let Some(role) = Role::parse(r) else {
                         p.unknown.push(format!("role:{r}"));
                         return Ok(());
@@ -113,6 +137,9 @@ pub(crate) fn parse(
                 .ok_or(LineErrorKind::MissingField("payload"))?;
             let ty = required(payload, "type")?;
             match ty {
+                "item_completed" if state.codex_completed() => {
+                    completed(payload, p)?;
+                }
                 "token_count"
                     if mode == CodexUsageMode::TokenCount && p.wants(EventKinds::USAGE) =>
                 {
@@ -156,12 +183,187 @@ pub(crate) fn parse(
                 .ok_or(LineErrorKind::MissingField("payload"))?;
             p.emit(2, Event::Usage(usage::response(payload, state)?));
         }
-        "token_usage_record"
+        "user_message" if p.wants(EventKinds::MESSAGE) => {
+            if !state.codex_completed() {
+                crate::adapters::message(
+                    Role::User,
+                    v.get("content")
+                        .ok_or(LineErrorKind::MissingField("content"))?,
+                    v,
+                    p,
+                )?;
+            } else {
+                p.ignored.push(kind.into());
+            }
+        }
+        "user_message"
+        | "token_usage_record"
         | "compacted"
         | "world_state"
         | "inter_agent_communication_metadata" => p.ignored.push(kind.into()),
         other => p.unknown.push(other.into()),
     }
+    Ok(())
+}
+
+fn completed(payload: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
+    let item = payload
+        .get("item")
+        .ok_or(LineErrorKind::MissingField("item"))?;
+    let kind = required(item, "type")?;
+    p.message_id = string(item, "id");
+    match kind {
+        "UserMessage" | "AgentMessage" => {
+            if p.wants(EventKinds::MESSAGE) {
+                crate::adapters::message(
+                    if kind == "UserMessage" {
+                        Role::User
+                    } else {
+                        Role::Assistant
+                    },
+                    item.get("content")
+                        .ok_or(LineErrorKind::MissingField("content"))?,
+                    item,
+                    p,
+                )?;
+            }
+        }
+        "Plan" if p.wants(EventKinds::MESSAGE) => {
+            crate::adapters::message(
+                Role::Assistant,
+                item.get("text")
+                    .ok_or(LineErrorKind::MissingField("text"))?,
+                item,
+                p,
+            )?;
+        }
+        "HookPrompt" if p.wants(EventKinds::MESSAGE) => {
+            crate::adapters::message(
+                Role::System,
+                item.get("fragments")
+                    .ok_or(LineErrorKind::MissingField("fragments"))?,
+                item,
+                p,
+            )?;
+        }
+        "FunctionCallOutput" => {
+            crate::adapters::result(
+                string(item, "id"),
+                item.get("output")
+                    .ok_or(LineErrorKind::MissingField("output"))?,
+                None,
+                3,
+                p,
+            )?;
+        }
+        "FileChange" => {
+            // The projected item retains changes, not the original apply_patch arguments.
+            crate::adapters::call(string(item, "id"), "apply_patch", None, 3, p);
+            crate::adapters::result(
+                string(item, "id"),
+                item,
+                item.get("status")
+                    .and_then(Value::as_str)
+                    .map(|s| matches!(s, "failed" | "declined")),
+                4,
+                p,
+            )?;
+            if let Some((_, Event::ToolResult(result))) = p
+                .events
+                .iter_mut()
+                .find(|(_, e)| matches!(e, Event::ToolResult(_)))
+            {
+                result.text = [string(item, "stdout"), string(item, "stderr")]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join("\n");
+            }
+        }
+        "CollabAgentToolCall" => {
+            crate::adapters::call(string(item, "id"), required(item, "tool")?, None, 3, p);
+            crate::adapters::result(
+                string(item, "id"),
+                item,
+                item.get("status")
+                    .and_then(Value::as_str)
+                    .map(|s| matches!(s, "failed" | "interrupted")),
+                4,
+                p,
+            )?;
+        }
+        "WebSearch" => web_search(item, p)?,
+        "Extension" => match required(item, "kind")? {
+            "web.search" => web_search(item, p)?,
+            "clock.sleep" => {
+                crate::adapters::call(string(item, "id"), "clock.sleep", None, 3, p);
+                crate::adapters::result(string(item, "id"), item, None, 4, p)?;
+            }
+            "image_gen.generation" => p.ignored.push("item_completed:image_gen.generation".into()),
+            other => p.unknown.push(format!("item_completed:extension:{other}")),
+        },
+        "CommandExecution" => {
+            if p.wants(EventKinds::TOOL_CALL) {
+                crate::adapters::call(
+                    string(item, "id"),
+                    "exec_command",
+                    item.get("command"),
+                    3,
+                    p,
+                );
+            }
+            if let Some(output) = item.get("aggregated_output").filter(|v| !v.is_null()) {
+                crate::adapters::result(
+                    string(item, "id"),
+                    output,
+                    item.get("exit_code")
+                        .and_then(Value::as_i64)
+                        .map(|v| v != 0),
+                    4,
+                    p,
+                )?;
+            }
+        }
+        "McpToolCall" | "DynamicToolCall" => {
+            if p.wants(EventKinds::TOOL_CALL) {
+                crate::adapters::call(
+                    string(item, "id"),
+                    required(item, "tool")?,
+                    item.get("arguments"),
+                    3,
+                    p,
+                );
+            }
+            if let Some(output) = item
+                .pointer("/result/content")
+                .or_else(|| item.get("content_items"))
+                .filter(|v| !v.is_null())
+            {
+                crate::adapters::result(
+                    string(item, "id"),
+                    output,
+                    item.get("success")
+                        .and_then(Value::as_bool)
+                        .map(|v| !v)
+                        .or_else(|| item.pointer("/result/isError").and_then(Value::as_bool)),
+                    4,
+                    p,
+                )?;
+            } else if let Some(error) = item.get("error").filter(|v| !v.is_null()) {
+                crate::adapters::result(string(item, "id"), error, Some(true), 4, p)?;
+            }
+        }
+        "Plan" | "HookPrompt" | "Reasoning" | "ContextCompaction" | "SubAgentActivity"
+        | "ImageView" | "ImageGeneration" => p.ignored.push(format!("item_completed:{kind}")),
+        other => p.unknown.push(format!("item_completed:{other}")),
+    }
+    Ok(())
+}
+
+fn web_search(item: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
+    // Search projection retains the query/action and opaque search results.
+    crate::adapters::call(string(item, "id"), "web_search", item.get("action"), 3, p);
+    crate::adapters::result(string(item, "id"), item, None, 4, p)?;
     Ok(())
 }
 
