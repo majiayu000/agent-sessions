@@ -101,10 +101,10 @@ fn pi_records_preserve_branch_ids_tools_and_cache_semantics() {
         Agent::Pi,
         &[
             json!({"type":"session","id":"pi","cwd":"/synthetic/project"}),
-            json!({"type":"model_change","modelId":"model-test"}),
-            json!({"type":"message","id":"u","parentId":null,"message":{"role":"user","content":"same","timestamp":1700000000123_i64}}),
+            json!({"type":"model_change","id":"model","parentId":null,"modelId":"model-test"}),
+            json!({"type":"message","id":"u","parentId":"model","message":{"role":"user","content":"same","timestamp":1700000000123_i64}}),
             json!({"type":"message","id":"a","parentId":"u","message":{"role":"assistant","content":[{"type":"text","text":"same"},{"type":"toolCall","id":"t","name":"bash","arguments":{"command":"pwd"}}],"usage":{"input":10,"output":5,"cacheRead":4,"cacheWrite":2,"reasoning":1,"totalTokens":21}}}),
-            json!({"type":"message","id":"r","message":{"role":"toolResult","toolCallId":"t","isError":false,"content":[{"type":"text","text":"done"}]}}),
+            json!({"type":"message","id":"r","parentId":"a","message":{"role":"toolResult","toolCallId":"t","isError":false,"content":[{"type":"text","text":"done"}]}}),
         ],
         &ReadOptions::default(),
     );
@@ -307,6 +307,7 @@ fn kimi_code_v2_journal_uses_native_records_and_one_usage_ledger() {
             json!({"type":"turn.prompt","input":{"text":"request"},"time":1700000000000_i64}),
             json!({"type":"context.append_message","time":1700000000000_i64,"message":{"role":"user","content":[{"type":"text","text":"request"}],"toolCalls":[]}}),
             json!({"type":"llm.request","time":1700000000001_i64,"model":"synthetic-model","provider":"synthetic"}),
+            json!({"type":"context.append_loop_event","event":{"type":"step.begin","uuid":"step"}}),
             json!({"type":"context.append_loop_event","time":1700000000123_i64,"event":{"type":"content.part","uuid":"part","stepUuid":"step","part":{"type":"text","text":" 中文\n "}}}),
             json!({"type":"context.append_loop_event","event":{"type":"tool.call","uuid":"call","stepUuid":"step","toolCallId":"t","name":"read_file","args":{"path":"fixture.txt"}}}),
             json!({"type":"context.append_loop_event","event":{"type":"tool.result","toolCallId":"t","parentUuid":"call","result":{"output":"native output","isError":false}}}),
@@ -802,7 +803,7 @@ fn sqlite_cursor_respects_header_order_and_flags_unparsed_tools() {
         ),
         (
             "bubbleId:c:a",
-            json!({"bubbleId":"a","type":2,"text":"answer","toolFormerData":{"synthetic":true}}),
+            json!({"bubbleId":"a","type":2,"text":"answer","thinking":{"text":"Cursor 思考","signature":"native"},"toolFormerData":{"synthetic":true}}),
         ),
     ] {
         c.execute(
@@ -819,6 +820,7 @@ fn sqlite_cursor_respects_header_order_and_flags_unparsed_tools() {
     );
     assert!(!result.summary.is_supported());
     assert_eq!(result.summary.unknown_types["cursor:tool-payload"], 1);
+    assert!(result.events.iter().any(|e|matches!(&e.value,Event::Content(c) if c.kind=="thinking" && c.data["signature"]=="native")));
 }
 #[test]
 fn sqlite_goose_native_schema_and_optional_metadata() {
@@ -1060,7 +1062,7 @@ fn grok_acp_wrapped_tool_content_preserves_native_array_and_media_diagnostic() {
         &ReadOptions::default(),
     );
     assert!(result.summary.is_supported());
-    assert!(result.summary.ignored_types.contains_key("content:image"));
+    assert!(!result.summary.ignored_types.contains_key("content:image"));
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolResult(r) if r.text=="中文结果" && r.output==Some(content.clone()))));
 }
 
@@ -1313,9 +1315,13 @@ fn cursor_cli_checkpoint_uses_references_not_blob_order_and_keeps_native_tools()
     ]);
     let tool = pb_join(&[(8, read)]); // no native tool ID: do not invent one
     let root = pb_join(&[(1, vec![5]), (8, vec![1])]);
-    let turn = pb_bytes(1, &pb_join(&[(1, vec![2]), (2, vec![3]), (2, vec![4])]));
+    let turn = pb_bytes(
+        1,
+        &pb_join(&[(1, vec![2]), (2, vec![3]), (2, vec![4]), (2, vec![7])]),
+    );
     let rows = [
         (9, pb_bytes(1, b"unreachable")),
+        (7, pb_bytes(3, &pb_bytes(1, "Cursor CLI 思考".as_bytes()))),
         (6, " 中文\n ".as_bytes().to_vec()),
         (4, pb_bytes(2, &tool)),
         (3, pb_bytes(1, &pb_bytes(1, "答".as_bytes()))),
@@ -1346,6 +1352,7 @@ fn cursor_cli_checkpoint_uses_references_not_blob_order_and_keeps_native_tools()
         ]
     );
     assert_eq!(tools(&result), vec!["readToolCall"]);
+    assert!(result.events.iter().any(|e|matches!(&e.value,Event::Content(c) if c.kind=="thinkingMessage" && c.data["text"]=="Cursor CLI 思考")));
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolResult(r) if r.text==" 中文\n "&&r.output==Some(json!({"success":{"contentBlobId":"Bg=="}})))),"{:?}",result.events.iter().filter(|e|matches!(e.value,Event::ToolResult(_))).collect::<Vec<_>>());
     assert!(
         !serde_json::to_string(&result)
@@ -1405,6 +1412,13 @@ fn warp_native_tasks_keep_all_message_kinds_and_error_contract() {
         (5, tool),
         (5, output),
         (5, answer),
+        (
+            5,
+            pb_join(&[
+                (1, b"think".to_vec()),
+                (15, pb_bytes(1, "Warp 思考".as_bytes())),
+            ]),
+        ),
     ]);
     db.execute("INSERT INTO agent_tasks VALUES(1,'s',?1)", [task])
         .unwrap();
@@ -1416,6 +1430,7 @@ fn warp_native_tasks_keep_all_message_kinds_and_error_contract() {
         vec![(Role::User, " 问\n "), (Role::Assistant, "答")]
     );
     assert_eq!(tools(&result), vec!["runShellCommand"]);
+    assert!(result.events.iter().any(|e|matches!(&e.value,Event::Content(c) if c.kind=="agentReasoning" && c.data["reasoning"]=="Warp 思考")));
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolResult(r) if r.call_id.as_deref()==Some("c")&&r.output.as_ref().unwrap()["server"]["serializedResult"]=="result")));
     assert!(import_database(Agent::Warp, &path, "missing", &ReadOptions::default()).is_err());
     assert!(
@@ -1491,6 +1506,12 @@ fn zcode_sequence_and_model_timeline_do_not_drop_message_parts() {
         ("y", "a", 2, json!({"type":"text","text":" second "})),
         ("x", "a", 1, json!({"type":"text","text":"first"})),
         (
+            "r",
+            "a",
+            3,
+            json!({"type":"reasoning","text":"ZCode 思考","signature":"native"}),
+        ),
+        (
             "t",
             "a",
             0,
@@ -1511,6 +1532,7 @@ fn zcode_sequence_and_model_timeline_do_not_drop_message_parts() {
         vec![(Role::User, "问"), (Role::Assistant, "first\n second ")]
     );
     assert_eq!(result.summary.ignored_types["zcode:model-timeline"], 1);
+    assert!(result.events.iter().any(|e|matches!(&e.value,Event::Content(c) if c.kind=="reasoning" && c.data["signature"]=="native")));
 }
 #[test]
 fn new_native_discovery_excludes_trace_files_and_non_transcript_blobs() {

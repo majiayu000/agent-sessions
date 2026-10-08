@@ -32,6 +32,17 @@ pub enum Event {
     ToolCall(ToolCall),
     ToolResult(ToolResult),
     Usage(Usage),
+    Content(Content),
+}
+
+/// Native non-text conversation content. Payloads keep signatures, MIME types,
+/// references and structured state verbatim; referenced files are not fetched.
+/// `kind` labels the native block type or field; `data` is the original payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Content {
+    pub role: Option<Role>,
+    pub kind: String,
+    pub data: Value,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -122,7 +133,8 @@ impl EventKinds {
     pub const TOOL_CALL: Self = Self(4);
     pub const TOOL_RESULT: Self = Self(8);
     pub const USAGE: Self = Self(16);
-    pub const ALL: Self = Self(31);
+    pub const CONTENT: Self = Self(32);
+    pub const ALL: Self = Self(63);
     pub fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
     }
@@ -136,6 +148,7 @@ impl EventKinds {
             Event::ToolCall(_) => 4,
             Event::ToolResult(_) => 8,
             Event::Usage(_) => 16,
+            Event::Content(_) => 32,
         };
         self.0 & bit != 0
     }

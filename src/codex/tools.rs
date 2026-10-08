@@ -37,7 +37,7 @@ pub(super) fn parse(kind: &str, v: &Value, p: &mut Parsed) -> Result<(), LineErr
             p.emit(
                 3,
                 Event::ToolResult(ToolResult {
-                    output: None,
+                    output: Some(output.clone()),
                     call_id: string(v, "call_id"),
                     is_error: v.get("is_error").and_then(Value::as_bool),
                     text: body,

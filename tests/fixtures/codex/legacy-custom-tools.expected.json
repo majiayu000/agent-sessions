@@ -46,6 +46,7 @@
           "ToolResult": {
             "call_id": "tool-fixture",
             "is_error": null,
+            "output": "ok",
             "text": "ok"
           }
         }

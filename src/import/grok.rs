@@ -1,4 +1,4 @@
-//! Grok Build's authoritative ACP update journal (not chat_history mirrors).
+//! Grok Build ACP journal and explicit native chat_history snapshots.
 use super::*;
 use crate::{
     adapters,
@@ -20,10 +20,53 @@ pub(super) fn import(
     let mut rows: Vec<Row> = Vec::new();
     let mut calls = HashMap::<String, usize>::new();
     let mut outputs = HashMap::<String, usize>::new();
+    let mut format = None;
+    let mut chat_state = State::default();
     for record in records {
         let Some(v) = decode_record(record, opts, result)? else {
             continue;
         };
+        let chat = v.get("method").is_none()
+            && matches!(
+                v.get("type").and_then(Value::as_str),
+                Some("system" | "user" | "assistant" | "tool_result" | "reasoning")
+            );
+        if format.is_some_and(|old| old != chat) {
+            return Err(
+                LineErrorKind::InvalidField("mixed Grok journal and chat snapshot".into()).into(),
+            );
+        }
+        format = Some(chat);
+        if chat {
+            let mut p = Parsed {
+                include: opts.include,
+                record_id: string(&v, "id"),
+                ..Default::default()
+            };
+            let mut message = v.clone();
+            message["role"] = Value::String(if v["type"] == "tool_result" {
+                "tool".into()
+            } else {
+                required(&v, "type")?.into()
+            });
+            if v["type"] == "reasoning" {
+                adapters::native_content(Some(Role::Assistant), "reasoning", &v, 1, &mut p);
+            } else {
+                adapters::api_message(&message, &mut p)?;
+            }
+            if let Some(model) = string(&v, "model_id") {
+                chat_state.model = Some(model.clone());
+                p.emit(
+                    0,
+                    Event::Meta(MetaUpdate {
+                        model: Some(model),
+                        ..Default::default()
+                    }),
+                );
+            }
+            append(p, &chat_state, vec![record_source(record)], result);
+            continue;
+        }
         if !matches!(
             v.get("method").and_then(Value::as_str),
             Some("session/update" | "_x.ai/session/update")
@@ -112,7 +155,7 @@ pub(super) fn import(
         let u = &row.update;
         match required(u, "sessionUpdate")? {
             "user_message_chunk" | "agent_message_chunk" => {
-                if p.wants(EventKinds::MESSAGE) {
+                if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                     let content = u
                         .get("content")
                         .ok_or(LineErrorKind::MissingField("content"))?;
@@ -222,9 +265,16 @@ pub(super) fn import(
                     );
                 }
             }
-            "agent_thought_chunk"
-            | "plan"
-            | "hook_execution"
+            "agent_thought_chunk" | "plan" | "session_recap" => {
+                adapters::native_content(
+                    Some(Role::Assistant),
+                    required(u, "sessionUpdate")?,
+                    u,
+                    1,
+                    &mut p,
+                );
+            }
+            "hook_execution"
             | "hook_annotation"
             | "retry_state"
             | "background_tasks"
@@ -232,7 +282,6 @@ pub(super) fn import(
             | "task_completed"
             | "subagent_spawned"
             | "subagent_finished"
-            | "session_recap"
             | "memory_dream_queued"
             | "memory_dream_started"
             | "memory_dream_completed" => {

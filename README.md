@@ -8,7 +8,7 @@ WorkBuddy, Qoder, ZCode, Grok Bot, Cursor Agent CLI, Zed, Warp and Antigravity. 
 specifies the implemented formats, per-agent verification status, omissions and remaining gaps;
 this is not a claim of compatibility with every version of every agent.
 It discovers local sessions and streams messages, tool calls,
-usage and metadata as typed events with timestamps and source offsets. Use it
+usage, metadata and native content as typed events with timestamps and source offsets. Use it
 to build usage reports, searchable archives or other tools that need to trace
 an event back to its original record.
 
@@ -22,7 +22,7 @@ Cursor, Cursor Agent CLI, ZCode, Zed and Warp SQLite sessions use read-only
 `import_database`. Antigravity uses a full trajectory export from its native
 language service; [the exporter](examples/export_antigravity.py) reads the running
 macOS app without making a model request. Imported events retain
-JSON pointers, physical record locations or database row keys. Check
+JSON pointers, physical record locations, contributing file paths or database row keys. Check
 `summary.is_supported()` and the documented omissions before treating an import
 as complete. [Aggregate-only examples](docs/support.md#使用方式与完整性) cover each API.
 
@@ -30,9 +30,21 @@ The reader bounds file and line sizes, reports malformed records, and keeps
 source provenance. Callers decide their own accounting, filtering and archive
 commit policies.
 
-Live end-to-end tests launch real Codex, Grok Build and OpenCode clients, complete
-a file task, then verify their newly persisted native sessions. Run them explicitly
-with existing client authentication; see [live acceptance](docs/support.md#可重复的真实客户端端到端测试).
+`Event::Content` preserves native thinking, signatures, images, audio, video,
+attachments and context controls as JSON payloads. `EventKinds::CONTENT` selects
+this projection; `Message.text` remains the text projection. External media
+references remain references. Snapshot imports fold Kimi undo/clear/compaction,
+Pi's current branch and context edits, and CodeBuddy fork/clear records while
+retaining the physical usage ledger. OpenCode's older session/message/part JSON
+tree is read through its session file with provenance for each contributing file.
+
+Live end-to-end tests cover nine CLI entry points: Codex, Grok Build, OpenCode,
+Claude Code, Kimi Code, Cline CLI, Hermes, Cursor Agent CLI and WorkBuddy. They
+launch real clients, complete a file task, then verify newly persisted native
+sessions. Current runs passed for Codex, Grok Build and OpenCode; the other six
+failed with recorded authentication, hook or timeout errors. A separate Zed GUI
+run passed after exposing and fixing a native tool-input bug. Run CLI tests
+explicitly with existing authentication; see [live acceptance](docs/support.md#可重复的真实客户端端到端测试).
 
 Used by [ccstats](https://github.com/majiayu000/ccstats/pull/190),
 [Keepline](https://github.com/majiayu000/keepline/pull/116),
@@ -137,12 +149,12 @@ normal. Subagent path classification is only path evidence: Codex metadata may
 identify subagents in ordinary session paths. Inspect Meta events when applying
 subagent filtering. `SessionFile::inspect()` supports a hook-supplied host/path.
 
-Events: `Meta`, `Message`, `ToolCall`, `ToolResult`, `Usage`. Each is wrapped in
+Events: `Meta`, `Message`, `ToolCall`, `ToolResult`, `Usage`, `Content`. Each is wrapped in
 `Located` with timestamp, session/message ID when present, physical ordinal,
 byte range and event index. Text preserves whitespace and repeated occurrences;
-multiple text blocks are joined with a newline. Thinking/image contents are not
-exported. Tool arguments remain JSON values or raw strings; no implicit repair.
-This is a text/usage/tool projection, not a lossless multimodal transcript format.
+multiple text blocks are joined with a newline. Native thinking/media payloads are preserved as `Content`; external media remain
+references. Tool arguments remain JSON values or raw strings; no implicit repair.
+These projections do not reproduce every original transcript byte.
 
 ## Usage accounting
 

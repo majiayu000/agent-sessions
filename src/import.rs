@@ -3,6 +3,8 @@
 mod cursor_cli;
 mod database;
 mod grok;
+mod kimi_v2;
+mod opencode_files;
 mod replay;
 mod warp;
 use crate::parser::{Parsed, State, tally};
@@ -54,7 +56,15 @@ pub(super) fn note_protobuf(message: &prost_reflect::DynamicMessage, summary: &m
 pub enum ImportSource {
     JsonPointer(String),
     Record(Location),
-    DatabaseRow { table: String, key: String },
+    DatabaseRow {
+        table: String,
+        key: String,
+    },
+    /// A contributing document in a native multi-file store.
+    File {
+        path: std::path::PathBuf,
+        pointer: String,
+    },
 }
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ImportedEvent {
@@ -116,6 +126,15 @@ pub fn import_session(
     path: &Path,
     opts: &ReadOptions,
 ) -> Result<SessionImport, ImportError> {
+    if agent == Agent::OpenCode
+        && path
+            .parent()
+            .and_then(Path::parent)
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "session")
+    {
+        return opencode_files::import(path, opts);
+    }
     let file = File::open(path).map_err(ReadError::Io)?;
     let mut opts = opts.clone();
     if opts.stop_at_byte.is_none() {
@@ -136,7 +155,7 @@ pub fn import_session_from<R: BufRead>(
     opts: &ReadOptions,
 ) -> Result<SessionImport, ImportError> {
     opts.validate()?;
-    if agent.streaming() && agent != Agent::KimiCli {
+    if agent.streaming() && !matches!(agent, Agent::KimiCli | Agent::Pi | Agent::CodeBuddy) {
         let mut reader = read_from(agent, source, opts)?;
         let mut events = Vec::new();
         for e in reader.by_ref() {
@@ -194,7 +213,11 @@ pub fn import_session_from<R: BufRead>(
         summary,
         ..Default::default()
     };
-    if agent == Agent::GeminiCli {
+    if agent == Agent::CodeBuddy {
+        replay::codebuddy(&records, opts, &mut result)?;
+    } else if agent == Agent::Pi {
+        replay::pi(&records, opts, &mut result)?;
+    } else if agent == Agent::GeminiCli {
         // A legacy JSON document parses as one value; otherwise use native JSONL replay.
         if let Ok(v) = serde_json::from_slice::<Value>(&bytes)
             && v.get("messages").is_some()
@@ -456,7 +479,7 @@ pub(crate) fn parse_record(
     Ok(())
 }
 pub(crate) fn append(
-    p: Parsed,
+    mut p: Parsed,
     state: &State,
     sources: Vec<ImportSource>,
     result: &mut SessionImport,
@@ -467,6 +490,7 @@ pub(crate) fn append(
     for ignored in p.ignored {
         tally(&mut result.summary.ignored_types, &ignored);
     }
+    p.events.sort_by_key(|(slot, _)| *slot);
     for (_, mut value) in p.events {
         if let Event::Message(m) = &mut value {
             m.is_sidechain |= state.sidechain;

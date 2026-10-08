@@ -272,6 +272,9 @@ pub(super) fn kimi(
     let mut text_sources = Vec::new();
     let mut at = None;
     let mut call: Option<WireCall> = None;
+    let mut journal = Vec::new();
+    let mut subagents =
+        std::collections::BTreeMap::<String, (Option<String>, Vec<RawRecord>)>::new();
     for record in records {
         let Some(v) = decode_record(record, opts, result)? else {
             continue;
@@ -288,7 +291,7 @@ pub(super) fn kimi(
         // Kimi Code v2 journals have top-level dotted record types, unlike the
         // earlier {timestamp, message:{type,payload}} wire envelope.
         if v.get("type").is_some() {
-            kimi_code_record(&v, &mut state, opts, vec![source], result)?;
+            journal.push((v, vec![source]));
             continue;
         }
         let envelope = v
@@ -329,8 +332,12 @@ pub(super) fn kimi(
                     text_sources.push(source.clone());
                 } else {
                     // Use the same content diagnostics for media / thinking / future parts.
-                    if p.wants(EventKinds::MESSAGE) {
-                        crate::adapters::parts(&Value::Array(vec![payload.clone()]), &mut p)?;
+                    if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
+                        crate::adapters::parts(
+                            &Value::Array(vec![payload.clone()]),
+                            &mut p,
+                            Some(Role::Assistant),
+                        )?;
                     }
                 }
             }
@@ -373,6 +380,27 @@ pub(super) fn kimi(
                         &mut p,
                     )?;
                 }
+            }
+            "SubagentEvent" => {
+                let event = payload
+                    .get("event")
+                    .ok_or(LineErrorKind::MissingField("SubagentEvent.event"))?;
+                let parent = string(payload, "parent_tool_call_id")
+                    .or_else(|| string(payload, "task_tool_call_id"));
+                let id = string(payload, "agent_id")
+                    .or_else(|| parent.clone())
+                    .unwrap_or_default();
+                let mut nested = record.clone();
+                nested.bytes = serde_json::to_vec(
+                    &serde_json::json!({"timestamp":v.get("timestamp"), "message":event}),
+                )
+                .map_err(|_| invalid("SubagentEvent"))?;
+                subagents
+                    .entry(id)
+                    .or_insert_with(|| (parent, Vec::new()))
+                    .1
+                    .push(nested);
+                crate::adapters::native_content(None, "SubagentEvent", payload, 1, &mut p);
             }
             "StepBegin" | "TurnEnd" | "StepInterrupted" => {
                 flush_text(&mut text, &mut text_sources, &mut at, opts, result)?;
@@ -417,10 +445,21 @@ pub(super) fn kimi(
     }
     flush_text(&mut text, &mut text_sources, &mut at, opts, result)?;
     flush_call(&mut call, opts, result)?;
+    super::kimi_v2::fold(journal, opts, result)?;
+    for (_, (parent, records)) in subagents {
+        let start = result.events.len();
+        kimi(&records, opts, result)?;
+        for e in &mut result.events[start..] {
+            if let Event::Message(m) = &mut e.value {
+                m.is_sidechain = true;
+                m.parent_id = parent.clone();
+            }
+        }
+    }
     Ok(())
 }
 
-fn kimi_code_record(
+pub(super) fn kimi_code_record(
     v: &Value,
     state: &mut State,
     opts: &ReadOptions,
@@ -436,6 +475,7 @@ fn kimi_code_record(
     match kind {
         "context.append_message" => {
             if !p.wants(EventKinds::MESSAGE)
+                && !p.wants(EventKinds::CONTENT)
                 && !p.wants(EventKinds::TOOL_CALL)
                 && !p.wants(EventKinds::TOOL_RESULT)
             {
@@ -465,7 +505,7 @@ fn kimi_code_record(
                             string(c, "id"),
                             required(c, "name")?,
                             c.get("arguments"),
-                            3 + i,
+                            3 + m["content"].as_array().map_or(0, Vec::len) + i,
                             &mut p,
                         );
                     }
@@ -480,7 +520,7 @@ fn kimi_code_record(
             p.record_id = string(e, "uuid");
             p.message_id = string(e, "stepUuid");
             match required(e, "type")? {
-                "content.part" if p.wants(EventKinds::MESSAGE) => {
+                "content.part" if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) => {
                     let part = e.get("part").ok_or(LineErrorKind::MissingField("part"))?;
                     crate::adapters::message(
                         Role::Assistant,
@@ -567,5 +607,276 @@ fn kimi_code_record(
         other => p.unknown.push(format!("kimi:v2:{other}")),
     }
     append(p, state, sources, result);
+    Ok(())
+}
+
+/// Resolve Pi's current leaf, context edits and newest compaction. The streaming
+/// reader continues to expose the append-only tree; snapshots expose active context.
+pub(super) fn pi(
+    records: &[RawRecord],
+    opts: &ReadOptions,
+    result: &mut SessionImport,
+) -> Result<(), ImportError> {
+    use std::collections::{HashMap, HashSet};
+    let mut rows = Vec::new();
+    for record in records {
+        if let Some(v) = decode_record(record, opts, result)? {
+            rows.push(NativeMessage {
+                value: v,
+                sources: vec![record_source(record)],
+            });
+        }
+    }
+    let linear = rows
+        .iter()
+        .filter(|r| r.value["type"] != "session")
+        .all(|r| r.value.get("id").is_none())
+        && rows
+            .iter()
+            .filter(|r| r.value["type"] == "session")
+            .all(|r| r.value["version"].as_u64().unwrap_or(1) < 2);
+    let by_id: HashMap<_, _> = rows
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.value["type"] != "session")
+        .filter_map(|(i, r)| string(&r.value, "id").map(|id| (id, i)))
+        .collect();
+    let mut path = Vec::new();
+    let mut seen = HashSet::new();
+    let mut current = rows.iter().rposition(|r| r.value["type"] != "session");
+    while let Some(i) = current {
+        if !seen.insert(i) {
+            return Err(invalid("Pi parent cycle").into());
+        }
+        path.push(i);
+        current = match rows[i].value.get("parentId").filter(|v| !v.is_null()) {
+            Some(Value::String(id)) => {
+                Some(*by_id.get(id).ok_or_else(|| invalid("Pi missing parent"))?)
+            }
+            None => None,
+            _ => return Err(invalid("Pi parentId").into()),
+        };
+    }
+    path.reverse();
+    if linear {
+        path = rows
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.value["type"] != "session")
+            .map(|(i, _)| i)
+            .collect();
+    }
+    // A separate physical ledger survives branch changes and compaction.
+    let mut state = State::default();
+    let active: HashSet<_> = path.iter().copied().collect();
+    for (i, row) in rows.iter().enumerate() {
+        let p = crate::parser::parse(
+            Agent::Pi,
+            &row.value,
+            &mut state,
+            opts.codex_usage,
+            if opts.include.contains(EventKinds::USAGE) {
+                EventKinds::USAGE
+            } else {
+                EventKinds::META
+            },
+            opts.accounting,
+        )?;
+        let mut p = p;
+        p.events.retain(|(_, e)| matches!(e, Event::Usage(_)));
+        // Inactive branches still contribute diagnostics and billed usage.
+        // Active rows are parsed below with the requested projections.
+        if active.contains(&i) || row.value["type"] == "session" {
+            p.unknown.clear();
+        }
+        p.ignored.clear();
+        append(p, &state, row.sources.clone(), result);
+    }
+    if let Some(compaction) = path
+        .iter()
+        .rposition(|i| rows[*i].value["type"] == "compaction")
+    {
+        let index = path[compaction];
+        let kept = if linear {
+            let first = rows[index].value["firstKeptEntryIndex"]
+                .as_u64()
+                .ok_or_else(|| invalid("firstKeptEntryIndex"))?;
+            path[..compaction].iter().position(|i| *i as u64 == first)
+        } else {
+            let first = required(&rows[index].value, "firstKeptEntryId")?;
+            path[..compaction]
+                .iter()
+                .position(|i| rows[*i].value["id"] == first)
+        };
+        let mut active = vec![index];
+        if let Some(kept) = kept {
+            active.extend_from_slice(&path[kept..compaction]);
+        }
+        active.extend_from_slice(&path[compaction + 1..]);
+        path = active;
+    }
+    let mut edits = HashMap::new();
+    for &i in &path {
+        if rows[i].value["type"] == "context_edit" {
+            edits.insert(required(&rows[i].value, "targetId")?.to_owned(), i);
+        }
+    }
+    state = State::default();
+    for i in rows
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.value["type"] == "session")
+        .map(|(i, _)| i)
+        .chain(path)
+    {
+        let row = &rows[i];
+        let mut v = row.value.clone();
+        let mut sources = row.sources.clone();
+        if let Some(edit) = string(&v, "id").and_then(|id| edits.get(&id)) {
+            let replacement = rows[*edit]
+                .value
+                .get("replacement")
+                .ok_or(LineErrorKind::MissingField("replacement"))?;
+            if replacement.is_null() {
+                continue;
+            }
+            let content = replacement
+                .get("content")
+                .ok_or(LineErrorKind::MissingField("replacement.content"))?;
+            if v["type"] == "message" {
+                v["message"]["content"] = content.clone();
+            } else if v["type"] == "custom_message" {
+                v["content"] = content.clone();
+            }
+            sources.extend(rows[*edit].sources.clone());
+        }
+        let mut p = crate::parser::parse(
+            Agent::Pi,
+            &v,
+            &mut state,
+            opts.codex_usage,
+            opts.include,
+            opts.accounting,
+        )?;
+        p.events.retain(|(_, e)| !matches!(e, Event::Usage(_)));
+        append(p, &state, sources, result);
+    }
+    Ok(())
+}
+
+pub(super) fn codebuddy(
+    records: &[RawRecord],
+    opts: &ReadOptions,
+    result: &mut SessionImport,
+) -> Result<(), ImportError> {
+    use std::collections::{HashMap, HashSet};
+    let mut rows: Vec<NativeMessage> = Vec::new();
+    let mut upserts = HashMap::new();
+    for record in records {
+        let Some(v) = decode_record(record, opts, result)? else {
+            continue;
+        };
+        let native = v
+            .get("payload")
+            .filter(|v| v.is_object())
+            .unwrap_or(&v)
+            .clone();
+        let id = string(&v, "uuid");
+        if let Some(&index) = id.as_ref().and_then(|id| upserts.get(id)) {
+            let row: &mut NativeMessage = &mut rows[index];
+            row.value = native;
+            row.sources.push(record_source(record));
+        } else {
+            if let Some(id) = id {
+                upserts.insert(id, rows.len());
+            }
+            rows.push(NativeMessage {
+                value: native,
+                sources: vec![record_source(record)],
+            });
+        }
+    }
+    fn fact(v: &Value) -> bool {
+        matches!(
+            v["type"].as_str(),
+            Some(
+                "custom-title"
+                    | "ai-title"
+                    | "file-history-snapshot"
+                    | "summary"
+                    | "topic"
+                    | "goal-result"
+                    | "goal-progress"
+                    | "turn-metrics"
+                    | "resend-fork-notice"
+                    | "acp-terminal-state"
+                    | "model-usage"
+                    | "credit-usage"
+                    | "session-meta"
+            )
+        )
+    }
+    let branched = rows.iter().any(|r| r.value["type"] == "resend-fork-notice");
+    let mut selected = HashSet::new();
+    if branched {
+        let mut by_id = HashMap::new();
+        for (i, row) in rows.iter().enumerate().filter(|(_, r)| !fact(&r.value)) {
+            if let Some(id) = string(&row.value, "id")
+                && by_id.insert(id, i).is_some()
+            {
+                return Err(invalid("CodeBuddy ambiguous branch id").into());
+            }
+        }
+        let mut tip = None;
+        for row in &rows {
+            if row.value["type"] == "resend-fork-notice" {
+                tip = string(&row.value, "parentId");
+            } else if !fact(&row.value) {
+                tip = string(&row.value, "id");
+            }
+        }
+        while let Some(id) = tip {
+            let index = *by_id
+                .get(&id)
+                .ok_or_else(|| invalid("CodeBuddy missing branch parent"))?;
+            if !selected.insert(index) {
+                return Err(invalid("CodeBuddy parent cycle").into());
+            }
+            tip = string(&rows[index].value, "parentId");
+        }
+    } else {
+        selected.extend(0..rows.len());
+    }
+    // /clear is an explicit session separator, independent of fork metadata.
+    if let Some(clear) = rows.iter().rposition(|r| {
+        r.value
+            .pointer("/providerData/isSessionSeparator")
+            .and_then(Value::as_bool)
+            == Some(true)
+    }) {
+        selected.retain(|i| *i > clear);
+    }
+    let mut state = State::default();
+    for (i, row) in rows.into_iter().enumerate() {
+        let include = if selected.contains(&i) || fact(&row.value) {
+            opts.include
+        } else if opts.include.contains(EventKinds::USAGE) {
+            EventKinds::USAGE
+        } else {
+            EventKinds::META
+        };
+        let mut p = crate::parser::parse(
+            Agent::CodeBuddy,
+            &row.value,
+            &mut state,
+            opts.codex_usage,
+            include,
+            opts.accounting,
+        )?;
+        if !selected.contains(&i) && !fact(&row.value) {
+            p.events.retain(|(_, e)| matches!(e, Event::Usage(_)));
+        }
+        append(p, &state, row.sources, result);
+    }
     Ok(())
 }

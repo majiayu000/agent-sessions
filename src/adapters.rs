@@ -38,9 +38,30 @@ pub(crate) fn counter(v: &Value, key: &str) -> Result<Option<u64>, LineErrorKind
             .ok_or_else(|| LineErrorKind::InvalidField(key.into())),
     }
 }
+pub(crate) fn native_content(
+    role: Option<Role>,
+    kind: &str,
+    data: &Value,
+    slot: usize,
+    p: &mut Parsed,
+) {
+    if p.wants(EventKinds::CONTENT) {
+        p.emit(
+            slot,
+            Event::Content(Content {
+                role,
+                kind: kind.into(),
+                data: data.clone(),
+            }),
+        );
+    } else {
+        p.ignored.push(format!("content:{kind}"));
+    }
+}
 pub(crate) fn parts(
     parts: &Value,
     p: &mut Parsed,
+    role: Option<Role>,
 ) -> Result<(String, Vec<std::ops::Range<usize>>), LineErrorKind> {
     if let Some(text) = parts.as_str() {
         return Ok((text.into(), std::iter::once(0..text.len()).collect()));
@@ -53,7 +74,7 @@ pub(crate) fn parts(
         .ok_or_else(|| LineErrorKind::InvalidField("content".into()))?;
     let mut body = String::new();
     let mut segments = Vec::new();
-    for b in blocks {
+    for (i, b) in blocks.iter().enumerate() {
         if let Some(text) = b.as_str() {
             if !segments.is_empty() {
                 body.push('\n');
@@ -65,7 +86,9 @@ pub(crate) fn parts(
         }
         let ty = b.get("type").and_then(Value::as_str);
         if b.get("thought").and_then(Value::as_bool) == Some(true) {
-            p.ignored.push("content:thinking".into());
+            if role.is_some() {
+                native_content(role, "thinking", b, 3 + i, p);
+            }
             continue;
         }
         let text = match ty {
@@ -82,16 +105,21 @@ pub(crate) fn parts(
                 "thinking" | "think" | "reasoning" | "redacted_thinking" | "redactedThinking"
                 | "redacted-reasoning" | "image" | "imageUrl" | "file" | "input_image"
                 | "output_image" | "image_url" | "audio_url" | "video_url" | "inputImage"
-                | "inputAudio" | "document" | "image_blob_ref",
+                | "inputAudio" | "document" | "image_blob_ref" | "audio" | "video" | "input_audio"
+                | "output_audio" | "resource" | "resource_link" | "tool_reference",
             ) => {
-                p.ignored.push(format!("content:{}", ty.unwrap()));
+                if role.is_some() {
+                    native_content(role, ty.unwrap(), b, 3 + i, p);
+                }
                 None
             }
             None if b.get("inlineData").is_some()
                 || b.get("fileData").is_some()
                 || b.get("thoughtSignature").is_some() =>
             {
-                p.ignored.push("content:media-or-signature".into());
+                if role.is_some() {
+                    native_content(role, "media-or-signature", b, 3 + i, p);
+                }
                 None
             }
             Some(other) => {
@@ -104,6 +132,12 @@ pub(crate) fn parts(
             }
         };
         if let Some(text) = text {
+            if role.is_some()
+                && b.as_object()
+                    .is_some_and(|v| v.keys().any(|k| !matches!(k.as_str(), "type" | "text")))
+            {
+                native_content(role, ty.unwrap_or("text"), b, 3 + i, p);
+            }
             if !segments.is_empty() {
                 body.push('\n');
             }
@@ -120,10 +154,10 @@ pub(crate) fn message(
     native: &Value,
     p: &mut Parsed,
 ) -> Result<(), LineErrorKind> {
-    if !p.wants(EventKinds::MESSAGE) {
+    if !p.wants(EventKinds::MESSAGE) && !p.wants(EventKinds::CONTENT) {
         return Ok(());
     }
-    let (text, text_segments) = parts(content, p)?;
+    let (text, text_segments) = parts(content, p, Some(role))?;
     p.emit(
         1,
         Event::Message(Message {
@@ -174,13 +208,13 @@ pub(crate) fn result(
         return Ok(());
     }
     let text = if output.is_string() || output.is_array() || output.is_null() {
-        parts(output, p)?.0
+        parts(output, p, None)?.0
     } else {
         output
             .get("text")
             .or_else(|| output.get("content"))
             .filter(|v| v.is_string() || v.is_array())
-            .map(|v| parts(v, p))
+            .map(|v| parts(v, p, None))
             .transpose()?
             .map(|v| v.0)
             .unwrap_or_default()
@@ -339,6 +373,7 @@ fn api_tools(content: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
 }
 pub(crate) fn api_message(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     if !p.wants(EventKinds::MESSAGE)
+        && !p.wants(EventKinds::CONTENT)
         && !p.wants(EventKinds::TOOL_CALL)
         && !p.wants(EventKinds::TOOL_RESULT)
     {
@@ -347,7 +382,7 @@ pub(crate) fn api_message(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind
     if v.get("type").and_then(Value::as_str) == Some("reasoning")
         || v.get("role").and_then(Value::as_str) == Some("thinking")
     {
-        p.ignored.push("message:reasoning".into());
+        native_content(Some(Role::Assistant), "reasoning", v, 1, p);
         return Ok(());
     }
     let role = required(v, "role")?;
@@ -390,6 +425,27 @@ pub(crate) fn api_message(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind
             );
         }
     }
+    for (i, key) in [
+        "reasoning",
+        "reasoning_content",
+        "reasoning_details",
+        "codex_reasoning_items",
+        "codex_message_items",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if let Some(data) = v.get(key).filter(|v| !v.is_null()) {
+            let slot = 3
+                + content.as_array().map_or(0, Vec::len)
+                + v.get("tool_calls")
+                    .or_else(|| v.get("toolCalls"))
+                    .and_then(Value::as_array)
+                    .map_or(0, Vec::len)
+                + i;
+            native_content(Role::parse(role), key, data, slot, p);
+        }
+    }
     Ok(())
 }
 pub(crate) fn parse(
@@ -405,11 +461,7 @@ pub(crate) fn parse(
         Agent::CopilotCli => copilot(v, state, p),
         Agent::GeminiCli => gemini(v, state, p),
         Agent::Cline | Agent::RooCode => api_message(v, p),
-        Agent::Hermes => {
-            p.ignored
-                .push("hermes:reasoning-and-extra-native-items-not-projected".into());
-            api_message(v, p)
-        }
+        Agent::Hermes => api_message(v, p),
         Agent::ClineCli => {
             p.message_id = string(v, "id");
             // CLI saves internal tool results as {query,result,success} entries,
@@ -501,6 +553,17 @@ pub(crate) fn parse(
                 .get("message")
                 .ok_or(LineErrorKind::MissingField("message"))?;
             api_message(m, p)?;
+            if let Some(context) = v.get("contextItems") {
+                let slot = p
+                    .events
+                    .iter()
+                    .map(|(slot, _)| *slot)
+                    .max()
+                    .unwrap_or(2)
+                    .max(2)
+                    + 1;
+                native_content(None, "contextItems", context, slot, p);
+            }
             if p.wants(EventKinds::USAGE)
                 && let Some(u) = m.get("usage")
             {
@@ -532,12 +595,72 @@ pub(crate) fn parse(
         }
         Agent::Goose => goose(v, p),
         Agent::Cursor => cursor(v, p),
-        Agent::CodeBuddy | Agent::IFlow => anthropic_session(v, state, p),
+        Agent::CodeBuddy => codebuddy(v, state, p),
+        Agent::IFlow => anthropic_session(v, state, p),
         _ => Err(LineErrorKind::InvalidField(
             "unsupported record source".into(),
         )),
     }
 }
+// CodeBuddy's native SDK history differs from its Claude stream-json view.
+fn codebuddy(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
+    if let Some(payload) = v.get("payload").filter(|v| v.is_object()) {
+        return codebuddy(payload, state, p);
+    }
+    let kind = required(v, "type")?;
+    match kind {
+        "message" | "function_call" | "function_call_result" | "reasoning" => {
+            workbuddy(v, state, p)?
+        }
+        "function_call_output" => result(
+            string(v, "callId"),
+            v.get("output")
+                .ok_or(LineErrorKind::MissingField("output"))?,
+            None,
+            3,
+            p,
+        )?,
+        "session-meta"
+        | "custom-title"
+        | "ai-title"
+        | "topic"
+        | "summary"
+        | "goal-result"
+        | "goal-progress"
+        | "turn-metrics"
+        | "resend-fork-notice"
+        | "acp-terminal-state"
+        | "model-usage"
+        | "credit-usage"
+        | "file-history-snapshot" => {
+            p.record_id = string(v, "id");
+            native_content(None, kind, v, 1, p);
+        }
+        _ => return anthropic_session(v, state, p),
+    }
+    if p.wants(EventKinds::USAGE)
+        && (kind == "model-usage" || kind == "message" && v["role"] == "assistant")
+        && let Some(u) = v.pointer("/providerData/usage")
+    {
+        usage(
+            TokenCounts {
+                input: counter(u, "inputTokens")?,
+                output: counter(u, "outputTokens")?,
+                reported_total: counter(u, "totalTokens")?,
+                ..Default::default()
+            },
+            TokenSemantics::Unknown,
+            state.model.clone(),
+            v.pointer("/providerData/messageId")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .or_else(|| string(v, "id")),
+            p,
+        );
+    }
+    Ok(())
+}
+
 fn anthropic_session(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
     let kind = required(v, "type")?;
     if !matches!(kind, "user" | "assistant") {
@@ -566,6 +689,7 @@ fn anthropic_session(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(),
         }),
     );
     if p.wants(EventKinds::MESSAGE)
+        || p.wants(EventKinds::CONTENT)
         || p.wants(EventKinds::TOOL_CALL)
         || p.wants(EventKinds::TOOL_RESULT)
     {
@@ -630,6 +754,7 @@ fn qwen(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKin
                 .get("message")
                 .ok_or(LineErrorKind::MissingField("message"))?;
             if p.wants(EventKinds::MESSAGE)
+                || p.wants(EventKinds::CONTENT)
                 || p.wants(EventKinds::TOOL_CALL)
                 || p.wants(EventKinds::TOOL_RESULT)
             {
@@ -658,6 +783,9 @@ fn qwen(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKin
                 .or_else(|| v.pointer("/systemPayload/displayText"))
             {
                 message(Role::System, c, v, p)?;
+            }
+            if let Some(payload) = v.get("systemPayload") {
+                native_content(Some(Role::System), "systemPayload", payload, 3, p);
             }
             p.ignored.push(format!(
                 "system:{}",
@@ -702,7 +830,56 @@ fn pi(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind>
             if p.at.is_none() {
                 p.at = millis(m.get("timestamp"))?;
             }
-            api_message(m, p)?;
+            match m.get("role").and_then(Value::as_str) {
+                Some("bashExecution") => {
+                    native_content(Some(Role::User), "bashExecution", m, 1, p);
+                    call(None, "bash", m.get("command"), 3, p);
+                    if let Some(output) = m.get("output") {
+                        result(
+                            None,
+                            output,
+                            m.get("exitCode")
+                                .and_then(Value::as_i64)
+                                .map(|code| code != 0)
+                                .or_else(|| {
+                                    m.get("cancelled").and_then(Value::as_bool).filter(|v| *v)
+                                }),
+                            4,
+                            p,
+                        )?;
+                    }
+                }
+                Some("custom") => {
+                    native_content(
+                        Some(Role::User),
+                        "custom",
+                        m,
+                        3 + m
+                            .get("content")
+                            .and_then(Value::as_array)
+                            .map_or(0, Vec::len),
+                        p,
+                    );
+                    message(
+                        Role::User,
+                        m.get("content")
+                            .ok_or(LineErrorKind::MissingField("content"))?,
+                        m,
+                        p,
+                    )?;
+                }
+                Some(kind @ ("branchSummary" | "compactionSummary")) => {
+                    native_content(None, kind, m, 3, p);
+                    message(
+                        Role::System,
+                        m.get("summary")
+                            .ok_or(LineErrorKind::MissingField("summary"))?,
+                        m,
+                        p,
+                    )?;
+                }
+                _ => api_message(m, p)?,
+            }
             for (_, event) in &mut p.events {
                 if let Event::Message(message) = event {
                     message.parent_id = string(v, "parentId");
@@ -730,6 +907,7 @@ fn pi(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind>
             }
         }
         "compaction" | "branch_summary" => {
+            native_content(None, required(v, "type")?, v, 3, p);
             if let Some(summary) = v.get("summary") {
                 message(Role::System, summary, v, p)?;
             }
@@ -741,11 +919,18 @@ fn pi(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind>
         }
         "custom_message" => {
             if let Some(content) = v.get("content") {
-                message(Role::System, content, v, p)?;
+                message(Role::User, content, v, p)?;
+                native_content(
+                    Some(Role::User),
+                    "custom_message",
+                    v,
+                    3 + content.as_array().map_or(0, Vec::len),
+                    p,
+                );
             }
         }
         "thinking_level_change" | "custom" | "label" | "session_info" | "context_edit" => {
-            p.ignored.push(required(v, "type")?.into())
+            native_content(None, required(v, "type")?, v, 1, p);
         }
         other => p.unknown.push(other.into()),
     }
@@ -836,6 +1021,19 @@ fn copilot(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineError
             {
                 m.is_sidechain = v.get("agentId").is_some_and(|v| !v.is_null());
             }
+            for key in ["attachments", "toolRequests"] {
+                if let Some(data) = d.get(key) {
+                    let slot = p
+                        .events
+                        .iter()
+                        .map(|(slot, _)| *slot)
+                        .max()
+                        .unwrap_or(2)
+                        .max(2)
+                        + 1;
+                    native_content(Some(role), key, data, slot, p);
+                }
+            }
             // Tool requests are intent; execution_start is the canonical call record.
         }
         "tool.execution_start" if p.wants(EventKinds::TOOL_CALL) => call(
@@ -886,13 +1084,14 @@ fn copilot(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineError
                 }),
             );
         }
+        "assistant.reasoning" | "assistant.reasoning_delta" => {
+            native_content(Some(Role::Assistant), kind, d, 1, p)
+        }
         "tool.execution_start"
         | "tool.execution_complete"
         | "assistant.usage"
         | "assistant.turn_start"
         | "assistant.turn_end"
-        | "assistant.reasoning"
-        | "assistant.reasoning_delta"
         | "assistant.message_delta"
         | "assistant.intent"
         | "assistant.streaming_delta"
@@ -925,7 +1124,7 @@ fn gemini(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorK
     let kind = required(v, "type")?;
     match kind {
         "user" | "gemini" => {
-            if p.wants(EventKinds::MESSAGE) {
+            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                 let c = v
                     .get("content")
                     .ok_or(LineErrorKind::MissingField("content"))?;
@@ -969,6 +1168,17 @@ fn gemini(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorK
                     }
                 }
             }
+            if let Some(thoughts) = v.get("thoughts") {
+                let slot = p
+                    .events
+                    .iter()
+                    .map(|(slot, _)| *slot)
+                    .max()
+                    .unwrap_or(2)
+                    .max(2)
+                    + 1;
+                native_content(Some(Role::Assistant), "thoughts", thoughts, slot, p);
+            }
             if let Some(u) = v.get("tokens") {
                 gemini_usage(
                     u,
@@ -1006,13 +1216,17 @@ fn opencode(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErro
         .get("parts")
         .and_then(Value::as_array)
         .ok_or(LineErrorKind::MissingField("parts"))?;
-    for b in blocks {
+    for (i, b) in blocks.iter().enumerate() {
         if let Some(
             kind @ ("step-start" | "step-finish" | "snapshot" | "patch" | "subtask" | "agent"
             | "retry" | "compaction"),
         ) = b.get("type").and_then(Value::as_str)
         {
-            p.ignored.push(format!("part:{kind}"));
+            if matches!(kind, "patch" | "subtask" | "compaction" | "snapshot") {
+                native_content(Role::parse(role), kind, b, 3 + i, p);
+            } else {
+                p.ignored.push(format!("part:{kind}"));
+            }
         }
     }
     let text = Value::Array(
@@ -1189,6 +1403,14 @@ fn cursor(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     } else {
         p.unknown.push("cursor:missing-or-encrypted-text".into());
     }
+    for (slot, key) in ["thinking", "images", "attachedFiles", "context", "richText"]
+        .iter()
+        .enumerate()
+    {
+        if let Some(data) = v.get(key).filter(|v| !v.is_null()) {
+            native_content(Some(role), key, data, 5 + slot, p);
+        }
+    }
     // tokenCount is UI/context bookkeeping, not established per-response usage.
     if let Some(tool) = v.get("toolFormerData").filter(|v| !v.is_null()) {
         if let Some(name) = tool.get("name").and_then(Value::as_str) {
@@ -1245,7 +1467,7 @@ fn workbuddy(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErr
     );
     match required(v, "type")? {
         "message" => {
-            if p.wants(EventKinds::MESSAGE) {
+            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                 let role = Role::parse(required(v, "role")?)
                     .ok_or_else(|| LineErrorKind::InvalidField("role".into()))?;
                 message(
@@ -1282,11 +1504,18 @@ fn workbuddy(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErr
                 p,
             )?;
         }
-        "function_call"
-        | "function_call_result"
-        | "reasoning"
-        | "file-history-snapshot"
-        | "ai-title" => p
+        "reasoning" | "file-history-snapshot" => native_content(
+            if v["type"] == "reasoning" {
+                Some(Role::Assistant)
+            } else {
+                None
+            },
+            required(v, "type")?,
+            v,
+            1,
+            p,
+        ),
+        "function_call" | "function_call_result" | "ai-title" => p
             .ignored
             .push(format!("workbuddy:{}", required(v, "type")?)),
         other => p.unknown.push(format!("workbuddy:{other}")),
@@ -1357,7 +1586,7 @@ fn grokbot(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                     return Ok(());
                 }
             };
-            if p.wants(EventKinds::MESSAGE) {
+            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                 message(
                     role,
                     v.get("content")
@@ -1372,7 +1601,7 @@ fn grokbot(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                 .get("message")
                 .ok_or(LineErrorKind::MissingField("message"))?;
             if m.get("type").and_then(Value::as_str) == Some("text") {
-                if p.wants(EventKinds::MESSAGE) {
+                if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                     message(
                         Role::Assistant,
                         m.get("content")
@@ -1394,17 +1623,41 @@ fn grokbot(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                         | "cursor-agent"
                 )
             ) {
-                p.ignored
-                    .push(format!("grokbot:send:{}", required(m, "type")?));
+                native_content(Some(Role::Assistant), required(m, "type")?, m, 1, p);
             } else {
                 p.unknown
                     .push(format!("grokbot:send:{}", required(m, "type")?));
             }
         }
         "notice" | "event" | "user-attachment" | "mcp-app" | "feedback" | "voice-call" => {
-            p.ignored.push(format!("grokbot:{}", required(v, "kind")?))
+            native_content(
+                if v["kind"] == "user-attachment" || v["kind"] == "voice-call" {
+                    Some(Role::User)
+                } else {
+                    None
+                },
+                required(v, "kind")?,
+                v,
+                1,
+                p,
+            );
         }
-        "tool-call" => p.unknown.push("grokbot:tool-call".into()),
+        "tool-call" => {
+            // The desktop replica stores an outline (name/status/summary), not
+            // executable arguments or a complete tool result. Never invent them.
+            if v.get("id").and_then(Value::as_str).is_some()
+                && v.get("name").and_then(Value::as_str).is_some()
+                && matches!(
+                    v.get("status").and_then(Value::as_str),
+                    Some("pending" | "completed" | "failed")
+                )
+            {
+                call(string(v, "id"), required(v, "name")?, None, 3, p);
+                native_content(Some(Role::Assistant), "tool-call", v, 4, p);
+            } else {
+                p.unknown.push("grokbot:tool-call".into());
+            }
+        }
         other => p.unknown.push(format!("grokbot:{other}")),
     }
     Ok(())
@@ -1452,7 +1705,17 @@ fn zed(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     } else if let Some(m) = v.get("Agent") {
         (Role::Assistant, m)
     } else if v.as_str() == Some("Resume") || v.get("Compaction").is_some() {
-        p.ignored.push("zed:resume-or-compaction".into());
+        native_content(
+            None,
+            if v.as_str() == Some("Resume") {
+                "Resume"
+            } else {
+                "Compaction"
+            },
+            v,
+            1,
+            p,
+        );
         return Ok(());
     } else {
         p.unknown.push("zed:message-variant".into());
@@ -1475,21 +1738,55 @@ fn zed(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                     .clone(),
             );
         } else if let Some(tool) = part.get("ToolUse") {
+            if !p.wants(EventKinds::TOOL_CALL) {
+                continue;
+            }
             let input = tool
                 .get("input")
                 .ok_or(LineErrorKind::MissingField("tool input"))?;
-            call(
-                string(tool, "id"),
-                required(tool, "name")?,
-                input.get("value"),
+            // The native SDK accepts raw JSON as well as its two-field
+            // {type,value} encoding. Arbitrary object keys are tool arguments.
+            let arguments = match input.as_object().filter(|o| o.len() == 2) {
+                Some(o)
+                    if o.get("type").and_then(Value::as_str) == Some("json")
+                        && o.contains_key("value") =>
+                {
+                    ToolArgs::Json(o["value"].clone())
+                }
+                Some(o)
+                    if o.get("type").and_then(Value::as_str) == Some("text")
+                        && o.contains_key("value") =>
+                {
+                    ToolArgs::RawString(required(input, "value")?.into())
+                }
+                _ => ToolArgs::Json(input.clone()),
+            };
+            p.emit(
                 slot + 3,
-                p,
+                Event::ToolCall(ToolCall {
+                    kind: ToolCallKind::Function,
+                    id: string(tool, "id"),
+                    name: required(tool, "name")?.into(),
+                    arguments,
+                }),
             );
         } else if part.get("Image").is_some()
             || part.get("Thinking").is_some()
             || part.get("RedactedThinking").is_some()
         {
-            p.ignored.push("zed:media-or-thinking".into());
+            native_content(
+                Some(role),
+                if part.get("Image").is_some() {
+                    "Image"
+                } else if part.get("Thinking").is_some() {
+                    "Thinking"
+                } else {
+                    "RedactedThinking"
+                },
+                part,
+                slot + 3,
+                p,
+            );
         } else {
             p.unknown.push("zed:content-variant".into());
         }
@@ -1562,7 +1859,16 @@ fn antigravity(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
             }
         }
         if agent.get("thinking").is_some() {
-            p.ignored.push("antigravity:thinking".into());
+            native_content(
+                Some(Role::Assistant),
+                "thinking",
+                &agent["thinking"],
+                3 + agent
+                    .get("toolCalls")
+                    .and_then(Value::as_array)
+                    .map_or(0, Vec::len),
+                p,
+            );
         }
     } else if let Some(tool) = v.pointer("/metadata/toolCall") {
         let id = string(tool, "id");
@@ -1614,7 +1920,7 @@ fn antigravity(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
             message(Role::Assistant, text, v, p)?;
         }
     } else if v.get("checkpoint").is_some() || v.get("conversationHistory").is_some() {
-        p.ignored.push("antigravity:checkpoint-or-context".into());
+        native_content(None, required(v, "type")?, v, 1, p);
     } else {
         p.unknown
             .push(format!("antigravity:{}", required(v, "type")?));

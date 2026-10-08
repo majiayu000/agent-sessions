@@ -8,10 +8,21 @@ fuzz_target!(|data: &[u8]| {
         let _ = project_conversation(&v);
         let _ = tolerant_timestamp_epoch(&v);
         let _ = project_codex_function(&v);
-        for agent in [Agent::ClaudeCode, Agent::Codex] {
+        for &agent in Agent::SUPPORTED {
             let projected = project_transcript(agent, &v);
             if let Some(message) = projected.message {
                 for range in message.text_segments { assert!(message.text.get(range).is_some()); }
+            }
+        }
+    }
+    for &agent in Agent::SUPPORTED {
+        let opts=ReadOptions { max_file_bytes:Some(65536),max_line_bytes:Some(8192),tail:TailMode::AllowIncomplete,..Default::default() };
+        if let Ok(imported)=import_session_from(agent,Cursor::new(data),&opts) {
+            for event in imported.events {
+                assert!(!event.sources.is_empty());
+                if let Event::Message(message)=event.value {
+                    for range in message.text_segments { assert!(message.text.get(range).is_some()); }
+                }
             }
         }
     }
