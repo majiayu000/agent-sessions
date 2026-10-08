@@ -10,6 +10,17 @@ pub(crate) struct State {
     pub previous: Option<TokenCounts>,
     pub broken_usage: bool,
     pub sidechain: bool,
+    pub codex_content: crate::CodexContentMode,
+    pub codex_paginated: bool,
+}
+impl State {
+    pub fn codex_completed(&self) -> bool {
+        match self.codex_content {
+            crate::CodexContentMode::Auto => self.codex_paginated,
+            crate::CodexContentMode::ResponseItems => false,
+            crate::CodexContentMode::CompletedItems => true,
+        }
+    }
 }
 #[derive(Default)]
 pub(crate) struct Parsed {
@@ -124,7 +135,15 @@ pub(crate) fn parse(
     }
     let mut candidate = state.clone();
     let mut parsed = Parsed {
-        at: timestamp(v)?,
+        at: if agent == Agent::WorkBuddy
+            || (agent == Agent::Qoder && v.get("timestamp").is_some_and(Value::is_number))
+        {
+            crate::adapters::millis(v.get("timestamp"))?
+        } else if agent == Agent::KimiCli && v.get("timestamp").is_some_and(Value::is_f64) {
+            crate::adapters::seconds(v.get("timestamp"))?
+        } else {
+            timestamp(v)?
+        },
         timestamp_text: timestamp_value(v)
             .and_then(Value::as_str)
             .map(str::to_owned),
@@ -137,6 +156,7 @@ pub(crate) fn parse(
     let result = match agent {
         Agent::ClaudeCode => crate::claude::parse(v, &mut candidate, &mut parsed),
         Agent::Codex => crate::codex::parse(v, &mut candidate, &mut parsed, mode),
+        _ => crate::adapters::parse(agent, v, &mut candidate, &mut parsed),
     };
     if let Err(kind) = result {
         if matches!(

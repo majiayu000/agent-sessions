@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0 (2026-10-08)
+
+- Expand from Claude Code and Codex to 26 coding-agent sources, including native
+  JSON/JSONL, patch journals, SQLite and protobuf-backed sessions. See
+  [the support matrix](docs/support.md) for each format's scope and verification.
+- Add snapshot import, read-only database import/session enumeration, and explicit
+  native-directory discovery. Imported events retain physical records, JSON
+  pointers or database row identities; unknown structures remain visible.
+- Support Codex legacy and paginated content using native history metadata,
+  selecting one content source to avoid duplicate messages.
+- Preserve native structured tool results and distinguish additional token
+  semantics without inventing missing usage or prices.
+- Add opt-in real-client end-to-end tests for Codex, Grok Build and OpenCode,
+  plus a local Antigravity trajectory exporter and aggregate inspection examples.
+
+The MSRV remains Rust 1.88. Public options/events have additional fields; consumers
+constructing struct literals may need to update them when upgrading from 0.2.
+Support is limited to the documented formats: this release does not certify every
+agent, version, tool type, branch-recovery path or multimodal capability.
+
 ## 0.2.2 (2026-09-27)
 
 - Align the Codex statistics fast path with the canonical parser, including error

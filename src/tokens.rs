@@ -24,6 +24,12 @@ pub struct TokenCounts {
 pub enum TokenSemantics {
     ClaudeExclusive,
     CodexInclusive,
+    /// Input excludes cache categories; output includes reasoning.
+    CacheExclusive,
+    /// Gemini prompt includes cached input; candidate output excludes thoughts.
+    Gemini,
+    /// Native overlap has not been established; exclusive() returns None.
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,8 +100,29 @@ impl TokenCounts {
     /// Convert inclusive Codex counts into disjoint categories without guessing
     /// absent counters. An unprovable subtraction stays None.
     pub fn exclusive(self, semantics: TokenSemantics) -> Option<Self> {
+        if semantics == TokenSemantics::Unknown {
+            return None;
+        }
         if semantics == TokenSemantics::ClaudeExclusive {
             return Some(self);
+        }
+        if semantics == TokenSemantics::Gemini {
+            return Some(Self {
+                input: match (self.input, self.cache_read) {
+                    (Some(input), Some(cache)) => Some(input.checked_sub(cache)?),
+                    _ => None,
+                },
+                ..self
+            });
+        }
+        if semantics == TokenSemantics::CacheExclusive {
+            return Some(Self {
+                output: match (self.output, self.reasoning) {
+                    (Some(output), Some(reasoning)) => Some(output.checked_sub(reasoning)?),
+                    _ => None,
+                },
+                ..self
+            });
         }
         let input = match (self.input, self.cache_read, self.cache_write) {
             (Some(i), Some(r), Some(w)) => Some(i.checked_sub(r)?.checked_sub(w)?),

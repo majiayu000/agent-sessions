@@ -85,6 +85,9 @@ pub struct ToolResult {
     pub call_id: Option<String>,
     pub is_error: Option<bool>,
     pub text: String,
+    /// Structured native output for adapters whose results are not plain text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
