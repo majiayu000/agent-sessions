@@ -17,6 +17,12 @@ an event back to its original record.
 [Claude Code & Codex JSONL format reference](docs/formats.md) ·
 [GitHub releases](https://github.com/majiayu000/agent-sessions/releases)
 
+The published release is [v0.3.0](https://github.com/majiayu000/agent-sessions/releases/tag/v0.3.0).
+`main` also contains unreleased content preservation, snapshot replay and native
+storage improvements listed in the [changelog](CHANGELOG.md#unreleased).
+The `0.3.0` dependency below selects the published package; use this checkout
+to try the unreleased additions.
+
 JSON/patch-based sessions use `import_session`; native OpenCode, Goose, Hermes,
 Cursor, Cursor Agent CLI, ZCode, Zed and Warp SQLite sessions use read-only
 `import_database`. Antigravity uses a full trajectory export from its native
@@ -38,13 +44,8 @@ Pi's current branch and context edits, and CodeBuddy fork/clear records while
 retaining the physical usage ledger. OpenCode's older session/message/part JSON
 tree is read through its session file with provenance for each contributing file.
 
-Live end-to-end tests cover nine CLI entry points: Codex, Grok Build, OpenCode,
-Claude Code, Kimi Code, Cline CLI, Hermes, Cursor Agent CLI and WorkBuddy. They
-launch real clients, complete a file task, then verify newly persisted native
-sessions. Current runs passed for Codex, Grok Build and OpenCode; the other six
-failed with recorded authentication, hook or timeout errors. A separate Zed GUI
-run passed after exposing and fixing a native tool-input bug. Run CLI tests
-explicitly with existing authentication; see [live acceptance](docs/support.md#可重复的真实客户端端到端测试).
+Real-client tests verify file side effects and newly persisted native sessions.
+See [verification](#verification) for current results and repeatable commands.
 
 Used by [ccstats](https://github.com/majiayu000/ccstats/pull/190),
 [Keepline](https://github.com/majiayu000/keepline/pull/116),
@@ -152,8 +153,9 @@ subagent filtering. `SessionFile::inspect()` supports a hook-supplied host/path.
 Events: `Meta`, `Message`, `ToolCall`, `ToolResult`, `Usage`, `Content`. Each is wrapped in
 `Located` with timestamp, session/message ID when present, physical ordinal,
 byte range and event index. Text preserves whitespace and repeated occurrences;
-multiple text blocks are joined with a newline. Native thinking/media payloads are preserved as `Content`; external media remain
-references. Tool arguments remain JSON values or raw strings; no implicit repair.
+multiple text blocks are joined with a newline. Native thinking/media payloads
+are preserved as `Content`; external media remain references. Tool arguments
+remain JSON values or raw strings; no implicit repair.
 These projections do not reproduce every original transcript byte.
 
 ## Usage accounting
@@ -256,6 +258,38 @@ See [product contract](docs/specs/v0.1/PRODUCT.md),
 [technical contract](docs/specs/v0.1/TECH.md) and
 [format notes](docs/formats.md). Existing PLAN.md is historical planning, not
 evidence of completed migrations or publication.
+
+## Verification
+
+Results recorded on 2026-10-08:
+
+| Check | Result |
+|---|---|
+| Local Rust 1.88 regression tests | 147 passed; 10 ignored (one isolation helper and nine opt-in live tests) |
+| Local quality checks | Rustdoc, clippy, formatting and a 60-second fuzz run passed |
+| [GitHub CI for PR #9](https://github.com/majiayu000/agent-sessions/actions/runs/37750637334) | Linux (Rust 1.88 and stable), macOS, Windows, lint and fuzz passed |
+| Automated real-client E2E | Codex, Grok Build and OpenCode passed; Claude Code, Kimi Code, Cline CLI, Hermes, Cursor Agent CLI and WorkBuddy failed with recorded authentication, hook or timeout errors |
+| Native GUI E2E | A real Zed Agent task passed after fixing missing tool arguments; this run is separate from the Rust tests |
+
+Each live task generates a unique input file and expectation before the model
+runs. The client must read the file through a tool, copy it to `result.txt` and
+reply with its contents. The library then imports the new native session and
+checks messages, tool arguments/results and call IDs, event order, source
+provenance and available usage. The same verifier must reject a wrong answer.
+This task does not establish coverage of all tools, multimodal inputs or branch
+recovery. Live E2E has not yet passed for all 26 clients.
+
+Run the nine CLI entry points explicitly with installed clients and existing
+authentication. This makes real model requests and may incur charges:
+
+```sh
+cargo +1.88.0 test --locked --test native_e2e -- --ignored --nocapture --test-threads=1
+```
+
+Ordinary `cargo test` does not run these live tests. Missing clients, failed
+authentication, timeouts and mismatched output fail acceptance. See
+[the per-client results and evidence](docs/support.md#端到端扩展与本次实际结果)
+for the exact scope and remaining gaps.
 
 ## Ecosystem APIs (0.2)
 
