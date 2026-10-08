@@ -53,11 +53,19 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
                 }
                 None => return Err(LineErrorKind::MissingField("message")),
             };
-            if p.wants(EventKinds::MESSAGE) {
+            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                 let c = m
                     .get("content")
                     .ok_or(LineErrorKind::MissingField("content"))?;
-                let (body, text_segments) = text_projection(c, p)?;
+                let (body, text_segments) = text_projection(
+                    c,
+                    p,
+                    Some(if kind == "user" {
+                        Role::User
+                    } else {
+                        Role::Assistant
+                    }),
+                )?;
                 let is_meta = flag(
                     v.get("isMeta")
                         .or_else(|| v.get("is_meta"))
@@ -107,9 +115,9 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
             }
             p.ignored.push("progress".into());
         }
-        "system" if p.wants(EventKinds::MESSAGE) => {
+        "system" if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) => {
             if let Some(c) = v.pointer("/message/content").or_else(|| v.get("content")) {
-                let (body, text_segments) = text_projection(c, p)?;
+                let (body, text_segments) = text_projection(c, p, Some(Role::System))?;
                 p.emit(
                     1,
                     Event::Message(Message {
@@ -125,24 +133,12 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
                 p.ignored.push(kind.into());
             }
         }
-        "system"
-        | "attachment"
-        | "summary"
-        | "last-prompt"
-        | "mode"
-        | "permission-mode"
-        | "ai-title"
-        | "atis-latch"
-        | "queue-operation"
-        | "pr-link"
-        | "file-history-snapshot"
-        | "file-history-delta"
-        | "custom-title"
-        | "agent-name"
-        | "cost-state"
-        | "started"
-        | "result"
-        | "frame-link" => p.ignored.push(kind.into()),
+        "attachment" | "summary" | "file-history-snapshot" | "file-history-delta" => {
+            crate::adapters::native_content(None, kind, v, 1, p);
+        }
+        "system" | "last-prompt" | "mode" | "permission-mode" | "ai-title" | "atis-latch"
+        | "queue-operation" | "pr-link" | "custom-title" | "agent-name" | "cost-state"
+        | "started" | "result" | "frame-link" => p.ignored.push(kind.into()),
         other => p.unknown.push(other.into()),
     }
     Ok(())

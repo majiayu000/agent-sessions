@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Preserve native non-text content through `Event::Content` and
+  `EventKinds::CONTENT`, including thinking, signatures, media references,
+  attachments and context controls. Keep structured Claude/Codex tool outputs.
+- Fold Kimi v2 undo, clear and compaction; assemble old Kimi subagent wire
+  fragments. Resolve Pi's current branch, context edits and compaction while
+  retaining billed usage from physical records.
+- Read CodeBuddy SDK transcripts and fork/clear records, explicit Grok chat
+  snapshots, Hermes SQLite reasoning fields, and OpenCode's older multi-file
+  JSON storage with `ImportSource::File` provenance.
+- Add native Codex search projections and regression coverage for the 26
+  existing clients. Extend fuzzing to their snapshot import paths.
+- Expand opt-in real-client E2E tests from three to nine CLI entry points; retain
+  failures and native evidence. Verify a real Zed GUI task and fix raw JSON tool
+  inputs being incorrectly imported as missing arguments.
+
 ## 0.3.0 (2026-10-08)
 
 - Expand from Claude Code and Codex to 26 coding-agent sources, including native

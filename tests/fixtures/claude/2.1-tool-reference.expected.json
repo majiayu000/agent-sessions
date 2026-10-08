@@ -26,13 +26,38 @@
           }
         }
       }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 93,
+          "byte_start": 0,
+          "event_index": 3,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "record_id": null,
+        "record_type": "user",
+        "session_id": null,
+        "timestamp_text": null,
+        "value": {
+          "Content": {
+            "data": {
+              "tool_name": "fixture-tool",
+              "type": "tool_reference"
+            },
+            "kind": "tool_reference",
+            "role": "User"
+          }
+        }
+      }
     }
   ],
   "summary": {
     "bytes_read": 93,
-    "ignored_types": {
-      "content:tool_reference": 1
-    },
+    "ignored_types": {},
     "last_complete_byte": 93,
     "line_errors": 0,
     "lines": 1,

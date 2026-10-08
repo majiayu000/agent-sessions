@@ -92,11 +92,12 @@ pub(crate) fn timestamp_parts(integer: Option<i64>, text: Option<&str>) -> Optio
         })
 }
 pub(crate) fn text(v: &Value, parsed: &mut Parsed) -> Result<String, LineErrorKind> {
-    text_projection(v, parsed).map(|(text, _)| text)
+    text_projection(v, parsed, None).map(|(text, _)| text)
 }
 pub(crate) fn text_projection(
     v: &Value,
     parsed: &mut Parsed,
+    role: Option<crate::Role>,
 ) -> Result<(String, Vec<std::ops::Range<usize>>), LineErrorKind> {
     if let Some(s) = v.as_str() {
         return Ok((s.to_owned(), std::iter::once(0..s.len()).collect()));
@@ -105,12 +106,28 @@ pub(crate) fn text_projection(
         .as_array()
         .ok_or(LineErrorKind::InvalidField("content".into()))?;
     let mut parts = Vec::new();
-    for b in blocks {
+    for (i, b) in blocks.iter().enumerate() {
         match required(b, "type")? {
-            "text" | "input_text" | "output_text" => parts.push(required(b, "text")?.to_owned()),
-            "tool_use" | "tool_result" | "server_tool_use" | "thinking" | "redacted_thinking"
-            | "image" | "input_image" | "output_image" | "document" => {}
-            "tool_reference" => parsed.ignored.push("content:tool_reference".into()),
+            kind @ ("text" | "input_text" | "output_text") => {
+                parts.push(required(b, "text")?.to_owned());
+                if role.is_some()
+                    && b.as_object().is_some_and(|fields| {
+                        fields
+                            .keys()
+                            .any(|key| !matches!(key.as_str(), "type" | "text"))
+                    })
+                {
+                    crate::adapters::native_content(role, kind, b, 3 + i, parsed);
+                }
+            }
+            "tool_use" | "tool_result" | "server_tool_use" => {}
+            kind @ ("thinking" | "redacted_thinking" | "reasoning" | "image" | "input_image"
+            | "output_image" | "document" | "tool_reference" | "input_audio"
+            | "output_audio" | "audio" | "video" | "file") => {
+                if role.is_some() {
+                    crate::adapters::native_content(role, kind, b, 3 + i, parsed);
+                }
+            }
             other => parsed.unknown.push(format!("content:{other}")),
         }
     }
@@ -136,6 +153,7 @@ pub(crate) fn parse(
     let mut candidate = state.clone();
     let mut parsed = Parsed {
         at: if agent == Agent::WorkBuddy
+            || (agent == Agent::CodeBuddy && v.get("timestamp").is_some_and(Value::is_number))
             || (agent == Agent::Qoder && v.get("timestamp").is_some_and(Value::is_number))
         {
             crate::adapters::millis(v.get("timestamp"))?

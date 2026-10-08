@@ -102,6 +102,12 @@
           "ToolResult": {
             "call_id": "tool-fixture",
             "is_error": false,
+            "output": [
+              {
+                "text": "result",
+                "type": "text"
+              }
+            ],
             "text": "result"
           }
         }

@@ -82,7 +82,7 @@ pub(crate) fn parse(
                 return Ok(());
             }
             match ty {
-                "message" if p.wants(EventKinds::MESSAGE) => {
+                "message" if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) => {
                     let r = if legacy {
                         "assistant"
                     } else {
@@ -95,7 +95,7 @@ pub(crate) fn parse(
                     let c = payload
                         .get("content")
                         .ok_or(LineErrorKind::MissingField("content"))?;
-                    let (body, text_segments) = text_projection(c, p)?;
+                    let (body, text_segments) = text_projection(c, p, Some(role))?;
                     p.emit(
                         1,
                         Event::Message(Message {
@@ -122,12 +122,54 @@ pub(crate) fn parse(
                 | "function_call_output"
                 | "custom_tool_call_output" => p.ignored.push(format!("response_item:{ty}")),
                 "reasoning"
-                | "web_search_call"
-                | "tool_search_call"
                 | "image_generation_call"
                 | "agent_message"
-                | "tool_search_call_output"
-                | "tool_search_output" => p.ignored.push(format!("response_item:{ty}")),
+                | "compaction"
+                | "compaction_summary" => {
+                    crate::adapters::native_content(Some(Role::Assistant), ty, payload, 1, p);
+                }
+                "web_search_call" => {
+                    crate::adapters::call(
+                        string(payload, "id"),
+                        "web_search",
+                        payload.get("action"),
+                        3,
+                        p,
+                    );
+                    if matches!(
+                        payload.get("status").and_then(Value::as_str),
+                        Some("completed" | "failed")
+                    ) {
+                        crate::adapters::result(
+                            string(payload, "id"),
+                            payload,
+                            Some(payload["status"] == "failed"),
+                            4,
+                            p,
+                        )?;
+                    }
+                }
+                "tool_search_call" => {
+                    crate::adapters::call(
+                        string(payload, "call_id").or_else(|| string(payload, "id")),
+                        "tool_search",
+                        payload.get("arguments"),
+                        3,
+                        p,
+                    );
+                }
+                "tool_search_output" => {
+                    crate::adapters::result(
+                        string(payload, "call_id").or_else(|| string(payload, "id")),
+                        payload,
+                        payload
+                            .get("status")
+                            .and_then(Value::as_str)
+                            .map(|status| status == "failed"),
+                        3,
+                        p,
+                    )?;
+                }
                 other => p.unknown.push(format!("response_item:{other}")),
             }
         }
@@ -214,7 +256,7 @@ fn completed(payload: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     p.message_id = string(item, "id");
     match kind {
         "UserMessage" | "AgentMessage" => {
-            if p.wants(EventKinds::MESSAGE) {
+            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                 crate::adapters::message(
                     if kind == "UserMessage" {
                         Role::User
@@ -237,7 +279,7 @@ fn completed(payload: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                 p,
             )?;
         }
-        "HookPrompt" if p.wants(EventKinds::MESSAGE) => {
+        "HookPrompt" if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) => {
             crate::adapters::message(
                 Role::System,
                 item.get("fragments")
@@ -299,7 +341,13 @@ fn completed(payload: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                 crate::adapters::call(string(item, "id"), "clock.sleep", None, 3, p);
                 crate::adapters::result(string(item, "id"), item, None, 4, p)?;
             }
-            "image_gen.generation" => p.ignored.push("item_completed:image_gen.generation".into()),
+            "image_gen.generation" => crate::adapters::native_content(
+                Some(Role::Assistant),
+                "image_gen.generation",
+                item,
+                1,
+                p,
+            ),
             other => p.unknown.push(format!("item_completed:extension:{other}")),
         },
         "CommandExecution" => {
@@ -353,8 +401,11 @@ fn completed(payload: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
                 crate::adapters::result(string(item, "id"), error, Some(true), 4, p)?;
             }
         }
-        "Plan" | "HookPrompt" | "Reasoning" | "ContextCompaction" | "SubAgentActivity"
-        | "ImageView" | "ImageGeneration" => p.ignored.push(format!("item_completed:{kind}")),
+        "Reasoning" | "ContextCompaction" | "SubAgentActivity" | "ImageView"
+        | "ImageGeneration" => {
+            crate::adapters::native_content(Some(Role::Assistant), kind, item, 1, p);
+        }
+        "Plan" | "HookPrompt" => p.ignored.push(format!("item_completed:{kind}")),
         other => p.unknown.push(format!("item_completed:{other}")),
     }
     Ok(())

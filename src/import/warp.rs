@@ -90,6 +90,7 @@ pub(super) fn import(
                         user,
                         &mut p,
                     )?;
+                    adapters::native_content(Some(Role::User), "userQuery", user, 3, &mut p);
                 } else if let Some(agent) = m.get("agentOutput") {
                     adapters::message(
                         Role::Assistant,
@@ -146,7 +147,11 @@ pub(super) fn import(
                         )
                     })
                 }) {
-                    p.ignored.push("warp:system-or-reasoning".into());
+                    for (kind, data) in m.as_object().unwrap() {
+                        if !matches!(kind.as_str(), "id" | "timestamp") {
+                            adapters::native_content(None, kind, data, 1, &mut p);
+                        }
+                    }
                 } else {
                     p.unknown.push("warp:message-variant".into());
                 }

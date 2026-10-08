@@ -369,17 +369,44 @@ pub fn import_database(
             opts,
             &mut result,
         );
-        let mut stmt = tx.prepare("SELECT id,role,length(CAST(content AS BLOB)),content,tool_call_id,length(CAST(tool_calls AS BLOB)),tool_calls,timestamp FROM messages WHERE session_id=?1 ORDER BY timestamp,id").map_err(ReadError::Database)?;
+        let columns = {
+            let mut schema = tx
+                .prepare("PRAGMA table_info(messages)")
+                .map_err(ReadError::Database)?;
+            schema
+                .query_map([], |r| r.get::<_, String>(1))
+                .map_err(ReadError::Database)?
+                .collect::<Result<std::collections::HashSet<_>, _>>()
+                .map_err(ReadError::Database)?
+        };
+        let extras: Vec<_> = [
+            "reasoning",
+            "reasoning_content",
+            "reasoning_details",
+            "codex_reasoning_items",
+            "codex_message_items",
+        ]
+        .into_iter()
+        .filter(|key| opts.include.contains(EventKinds::CONTENT) && columns.contains(*key))
+        .collect();
+        let mut query = "SELECT id,role,length(CAST(content AS BLOB)),content,tool_call_id,length(CAST(tool_calls AS BLOB)),tool_calls,timestamp".to_owned();
+        for key in &extras {
+            query.push_str(&format!(",length(CAST({key} AS BLOB)),{key}"));
+        }
+        query.push_str(" FROM messages WHERE session_id=?1 ORDER BY id");
+        let mut stmt = tx.prepare(&query).map_err(ReadError::Database)?;
         let mut rows = stmt.query([id]).map_err(ReadError::Database)?;
         while let Some(row) = rows.next().map_err(ReadError::Database)? {
             let content_size: Option<u64> = row.get(2).map_err(ReadError::Database)?;
             let calls_size: Option<u64> = row.get(5).map_err(ReadError::Database)?;
-            if opts.max_line_bytes.is_some_and(|limit| {
-                content_size
-                    .unwrap_or(0)
-                    .saturating_add(calls_size.unwrap_or(0))
-                    > limit as u64
-            }) {
+            let mut size = content_size
+                .unwrap_or(0)
+                .saturating_add(calls_size.unwrap_or(0));
+            for i in 0..extras.len() {
+                let extra_size: Option<u64> = row.get(8 + i * 2).map_err(ReadError::Database)?;
+                size = size.saturating_add(extra_size.unwrap_or(0));
+            }
+            if opts.max_line_bytes.is_some_and(|limit| size > limit as u64) {
                 return Err(LineErrorKind::TooLong.into());
             }
             let row_id: i64 = row.get(0).map_err(ReadError::Database)?;
@@ -404,6 +431,19 @@ pub fn import_database(
             let mut record = serde_json::json!({"role":role,"content":content,"tool_call_id":call_id,"timestamp":timestamp});
             if !calls.is_null() {
                 record["tool_calls"] = calls;
+            }
+            for (i, key) in extras.iter().enumerate() {
+                let data: Option<String> = row.get(9 + i * 2).map_err(ReadError::Database)?;
+                if let Some(data) = data {
+                    record[*key] = if matches!(
+                        *key,
+                        "reasoning_details" | "codex_reasoning_items" | "codex_message_items"
+                    ) {
+                        serde_json::from_str(&data).map_err(|_| LineErrorKind::InvalidJson)?
+                    } else {
+                        Value::String(data)
+                    };
+                }
             }
             parse_record(
                 agent,

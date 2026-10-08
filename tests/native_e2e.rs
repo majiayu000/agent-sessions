@@ -1,7 +1,9 @@
 //! Live acceptance: real clients, their native persistence, and independent task expectations.
 //! Opt in with `cargo test --test native_e2e -- --ignored --nocapture --test-threads=1`.
 //! Uses existing client authentication/model settings and makes paid model requests.
-use agent_sessions::{Agent, Event, ReadOptions, Role, SessionImport, ToolArgs, import_session};
+use agent_sessions::{
+    Agent, Event, ReadOptions, Role, SessionImport, ToolArgs, import_database, import_session,
+};
 use serde_json::Value;
 use std::{
     error::Error,
@@ -33,12 +35,61 @@ fn opencode_native_e2e() -> TestResult {
     live(Agent::OpenCode)
 }
 
+#[test]
+#[ignore = "requires installed/authenticated Claude Code; starts a real model session"]
+fn claude_native_e2e() -> TestResult {
+    live(Agent::ClaudeCode)
+}
+
+#[test]
+#[ignore = "requires installed/authenticated Kimi Code; starts a real model session"]
+fn kimi_native_e2e() -> TestResult {
+    live(Agent::KimiCli)
+}
+
+#[test]
+#[ignore = "requires installed/authenticated Cline CLI; starts a real model session"]
+fn cline_cli_native_e2e() -> TestResult {
+    live(Agent::ClineCli)
+}
+
+#[test]
+#[ignore = "requires installed/authenticated Hermes; starts a real model session"]
+fn hermes_native_e2e() -> TestResult {
+    live(Agent::Hermes)
+}
+
+#[test]
+#[ignore = "requires installed/authenticated Cursor Agent CLI; starts a real model session"]
+fn cursor_cli_native_e2e() -> TestResult {
+    live(Agent::CursorCli)
+}
+
+#[test]
+#[ignore = "requires installed/authenticated WorkBuddy; starts a real model session"]
+fn workbuddy_native_e2e() -> TestResult {
+    live(Agent::WorkBuddy)
+}
+
 fn live(agent: Agent) -> TestResult {
     let client = match agent {
         Agent::Codex => "codex",
         Agent::Grok => "grok",
         Agent::OpenCode => "opencode",
+        Agent::ClaudeCode => "claude",
+        Agent::KimiCli => "kimi",
+        Agent::ClineCli => "cline",
+        Agent::Hermes => "hermes",
+        Agent::CursorCli => "cursor-agent",
+        Agent::WorkBuddy => "workbuddy",
         _ => unreachable!(),
+    };
+    let executable = if agent == Agent::WorkBuddy && cfg!(target_os = "macos") {
+        PathBuf::from(
+            "/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy",
+        )
+    } else {
+        PathBuf::from(client)
     };
     // Keep private artifacts for independent inspection, including on failure.
     let dir = tempfile::Builder::new()
@@ -68,9 +119,32 @@ fn live(agent: Agent) -> TestResult {
          Do not inspect any other files, use subagents, or access the network."
     );
     fs::write(dir.join("prompt.txt"), &prompt)?;
-    run(Command::new(client).arg("--version"), &dir, "version")?;
-    let mut command = Command::new(client);
+    run(Command::new(&executable).arg("--version"), &dir, "version")?;
+    let mut command = Command::new(&executable);
     let grok_id = format!("00000000-0000-4000-8000-{:012x}", nonce & 0xffffffffffff);
+    let cursor_id = if agent == Agent::CursorCli {
+        run(
+            Command::new(&executable)
+                .arg("--workspace")
+                .arg(&dir)
+                .arg("create-chat"),
+            &dir,
+            "create-chat",
+        )?;
+        let id = fs::read_to_string(dir.join("create-chat.stdout"))?
+            .trim()
+            .to_owned();
+        if id.is_empty()
+            || !id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err("Cursor create-chat did not return a native chat id".into());
+        }
+        Some(id)
+    } else {
+        None
+    };
     match agent {
         Agent::Codex => {
             command.arg("exec").arg("--cd").arg(&dir).args([
@@ -106,6 +180,87 @@ fn live(agent: Agent) -> TestResult {
                 .arg(&dir)
                 .arg(&prompt);
         }
+        Agent::ClaudeCode => {
+            command
+                .args([
+                    "--print",
+                    "--verbose",
+                    "--output-format",
+                    "stream-json",
+                    "--session-id",
+                    &grok_id,
+                    "--permission-mode",
+                    "acceptEdits",
+                    "--tools",
+                    "Bash",
+                    "--allowedTools",
+                    "Bash(cat *)",
+                    "Bash(cp *)",
+                    "--strict-mcp-config",
+                    "--disable-slash-commands",
+                ])
+                .arg(&prompt);
+        }
+        Agent::KimiCli => {
+            command.args(["--output-format", "stream-json", "--prompt", &prompt]);
+        }
+        Agent::ClineCli => {
+            command
+                .arg("--cwd")
+                .arg(&dir)
+                .arg("--data-dir")
+                .arg(dir.join("cline-data"))
+                .args(["--json", "--timeout", "120", "--retries", "1"])
+                .arg(&prompt);
+        }
+        Agent::Hermes => {
+            command.args([
+                "chat",
+                "--toolsets",
+                "terminal",
+                "--max-turns",
+                "8",
+                "--query",
+                &prompt,
+            ]);
+        }
+        Agent::CursorCli => {
+            command
+                .arg("--workspace")
+                .arg(&dir)
+                .args([
+                    "--resume",
+                    cursor_id.as_deref().unwrap(),
+                    "--print",
+                    "--output-format",
+                    "stream-json",
+                    "--trust",
+                    "--force",
+                ])
+                .arg(&prompt);
+        }
+        Agent::WorkBuddy => {
+            command
+                .args([
+                    "--print",
+                    "--verbose",
+                    "--output-format",
+                    "stream-json",
+                    "--session-id",
+                    &grok_id,
+                    "--permission-mode",
+                    "acceptEdits",
+                    "--tools",
+                    "Bash",
+                    "--allowedTools",
+                    "Bash(cat *)",
+                    "Bash(cp *)",
+                    "--strict-mcp-config",
+                    "--max-turns",
+                    "8",
+                ])
+                .arg(&prompt);
+        }
         _ => unreachable!(),
     }
     run(&mut command, &dir, "client")?;
@@ -116,17 +271,21 @@ fn live(agent: Agent) -> TestResult {
     if actual_file != expected {
         return Err("client did not create the independently expected file contents".into());
     }
-    let native = match agent {
+    let home = std::env::home_dir().ok_or("home directory unavailable")?;
+    let (native, database_id) = match agent {
         Agent::Codex => {
             let id = stdout_id(&dir.join("client.stdout"), "thread_id")?;
             let root = agent_sessions::Roots::from_env_for(Agent::Codex)?
                 .codex
                 .ok_or("Codex storage root unavailable")?;
-            find_session(&root.join("sessions"), &id, false)?
+            (find_session(&root.join("sessions"), &id, false)?, None)
         }
         Agent::Grok => {
             let root = std::env::home_dir().ok_or("home directory unavailable")?;
-            find_session(&root.join(".grok/sessions"), &grok_id, true)?
+            (
+                find_session(&root.join(".grok/sessions"), &grok_id, true)?,
+                None,
+            )
         }
         Agent::OpenCode => {
             let id = stdout_id(&dir.join("client.stdout"), "sessionID")?;
@@ -135,7 +294,73 @@ fn live(agent: Agent) -> TestResult {
                 &dir,
                 "export",
             )?;
-            dir.join("export.stdout")
+            (dir.join("export.stdout"), None)
+        }
+        Agent::ClaudeCode => (
+            find_session(&home.join(".claude/projects"), &grok_id, false)?,
+            None,
+        ),
+        Agent::WorkBuddy => (
+            find_session(&home.join(".workbuddy/projects"), &grok_id, false)?,
+            None,
+        ),
+        Agent::KimiCli => {
+            let cwd = dir.canonicalize()?;
+            let mut matches = Vec::new();
+            for state in native_files(&home.join(".kimi-code/sessions"), "state.json")? {
+                let value: Value = serde_json::from_slice(&fs::read(&state)?)?;
+                if value
+                    .get("workDir")
+                    .and_then(Value::as_str)
+                    .is_some_and(|p| Path::new(p).canonicalize().ok().as_ref() == Some(&cwd))
+                {
+                    matches.push(state.parent().unwrap().join("agents/main/wire.jsonl"));
+                }
+            }
+            (exactly_one(matches)?, None)
+        }
+        Agent::ClineCli => {
+            let paths = native_files(&dir.join("cline-data"), ".messages.json")?;
+            (exactly_one(paths)?, None)
+        }
+        Agent::CursorCli => {
+            let id = cursor_id.unwrap();
+            let mut matches = Vec::new();
+            for path in native_files(&home.join(".cursor/chats"), "store.db")? {
+                let db = rusqlite::Connection::open_with_flags(
+                    &path,
+                    rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+                )?;
+                let encoded: String =
+                    db.query_row("SELECT value FROM meta WHERE key='0'", [], |r| r.get(0))?;
+                let bytes: Vec<u8> = encoded
+                    .as_bytes()
+                    .chunks_exact(2)
+                    .map(|p| u8::from_str_radix(std::str::from_utf8(p)?, 16).map_err(Into::into))
+                    .collect::<Result<_, Box<dyn Error>>>()?;
+                let meta: Value = serde_json::from_slice(&bytes)?;
+                if meta["agentId"] == id {
+                    matches.push(path);
+                }
+            }
+            (exactly_one(matches)?, Some(id))
+        }
+        Agent::Hermes => {
+            let path = home.join(".hermes/state.db");
+            let db = rusqlite::Connection::open_with_flags(
+                &path,
+                rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+            )?;
+            let mut query = db.prepare("SELECT DISTINCT session_id FROM messages WHERE role='user' AND instr(content,?1)>0")?;
+            let ids = query
+                .query_map([&fixture_name], |r| r.get::<_, String>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            if ids.len() != 1 {
+                return Err(
+                    "expected exactly one Hermes session containing the new task filename".into(),
+                );
+            }
+            (path, Some(ids[0].clone()))
         }
         _ => unreachable!(),
     };
@@ -143,8 +368,16 @@ fn live(agent: Agent) -> TestResult {
         dir.join("native-path.txt"),
         native.to_string_lossy().as_bytes(),
     )?;
-    let imported = import_session(agent, &native, &ReadOptions::default())?;
-    verify(&imported, &prompt, &fixture_name, &expected)
+    if let Some(id) = &database_id {
+        fs::write(dir.join("native-id.txt"), id)?;
+    }
+    let imported = if let Some(id) = database_id {
+        import_database(agent, &native, &id, &ReadOptions::default())?
+    } else {
+        import_session(agent, &native, &ReadOptions::default())?
+    };
+    let require_usage = !matches!(agent, Agent::CursorCli | Agent::Hermes | Agent::WorkBuddy);
+    verify(&imported, &prompt, &fixture_name, &expected, require_usage)
         .map_err(|reason| format!("{client}: {reason}; see private evidence directory"))?;
     // Exercise the same oracle with a wrong answer, not a separate always-failing assertion.
     if verify(
@@ -152,6 +385,7 @@ fn live(agent: Agent) -> TestResult {
         &prompt,
         &fixture_name,
         "deliberately incorrect answer",
+        require_usage,
     )
     .is_ok()
     {
@@ -163,7 +397,8 @@ fn live(agent: Agent) -> TestResult {
             "agent":client, "native_import":true, "file_contents":true,
             "user_prompt":true, "assistant_reply":true, "tool_arguments":true,
             "tool_output_and_call_id":true, "event_order":true,
-            "usage":true, "source_provenance":true, "wrong_expectation_rejected":true
+            "usage_checked":require_usage, "usage_present":imported.events.iter().any(|e| matches!(e.value, Event::Usage(_))),
+            "source_provenance":true, "wrong_expectation_rejected":true
         }))?,
     )?;
     eprintln!("{client}: native end-to-end checks passed; wrong expectation rejected");
@@ -175,6 +410,7 @@ fn verify(
     prompt: &str,
     filename: &str,
     expected: &str,
+    require_usage: bool,
 ) -> Result<(), &'static str> {
     if !imported.summary.is_supported() {
         return Err("native log incomplete or contains unsupported records");
@@ -229,10 +465,12 @@ fn verify(
     if output_index > last_output || reply.trim() != expected.trim() {
         return Err("final assistant reply differs from independent expectation");
     }
-    if !imported.events.iter().any(|e| {
-        matches!(&e.value, Event::Usage(u)
+    if require_usage
+        && !imported.events.iter().any(|e| {
+            matches!(&e.value, Event::Usage(u)
         if u.counts.input.is_some_and(|n| n > 0) && u.counts.output.is_some_and(|n| n > 0))
-    }) {
+        })
+    {
         return Err("native nonzero input/output usage missing");
     }
     Ok(())
@@ -277,7 +515,7 @@ fn find_session(root: &Path, id: &str, grok: bool) -> Result<PathBuf, Box<dyn Er
                             .and_then(Path::file_name)
                             .is_some_and(|n| n == id)
                 } else {
-                    name.ends_with(&format!("-{id}.jsonl"))
+                    name == format!("{id}.jsonl") || name.ends_with(&format!("-{id}.jsonl"))
                 };
                 if selected {
                     found.push(path);
@@ -289,6 +527,30 @@ fn find_session(root: &Path, id: &str, grok: bool) -> Result<PathBuf, Box<dyn Er
         return Err("expected exactly one persisted native session for new session id".into());
     }
     Ok(found.remove(0))
+}
+
+fn exactly_one(mut paths: Vec<PathBuf>) -> Result<PathBuf, Box<dyn Error>> {
+    if paths.len() != 1 {
+        return Err("expected exactly one native persistence file for the new session".into());
+    }
+    Ok(paths.remove(0))
+}
+
+fn native_files(root: &Path, suffix: &str) -> io::Result<Vec<PathBuf>> {
+    let mut pending = vec![root.to_path_buf()];
+    let mut paths = Vec::new();
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            if ty.is_dir() {
+                pending.push(entry.path());
+            } else if ty.is_file() && entry.file_name().to_string_lossy().ends_with(suffix) {
+                paths.push(entry.path());
+            }
+        }
+    }
+    Ok(paths)
 }
 
 fn private_file(path: &Path) -> io::Result<File> {
@@ -303,6 +565,11 @@ fn private_file(path: &Path) -> io::Result<File> {
 }
 
 fn run(command: &mut Command, dir: &Path, label: &str) -> TestResult {
+    serde_json::to_writer_pretty(
+        private_file(&dir.join(format!("{label}.command.json")))?,
+        &serde_json::json!({"program":command.get_program().to_string_lossy(),
+            "args":command.get_args().map(|a| a.to_string_lossy()).collect::<Vec<_>>() }),
+    )?;
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;

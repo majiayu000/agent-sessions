@@ -194,7 +194,7 @@ pub(super) fn import(
                 message_id: string(&user, "messageId"),
                 ..Default::default()
             };
-            if p.wants(EventKinds::MESSAGE) {
+            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                 adapters::message(
                     Role::User,
                     &Value::String(string(&user, "text").unwrap_or_default()),
@@ -202,6 +202,7 @@ pub(super) fn import(
                     &mut p,
                 )?;
             }
+            adapters::native_content(Some(Role::User), "userMessage", &user, 3, &mut p);
             let mut user_src = src.clone();
             user_src.push(user_source);
             append(p, &state, user_src, result);
@@ -227,7 +228,7 @@ pub(super) fn import(
                             .map(Value::from)
                             .as_ref(),
                     )?;
-                    if p.wants(EventKinds::MESSAGE) {
+                    if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
                         adapters::message(
                             Role::Assistant,
                             &Value::String(string(m, "text").unwrap_or_default()),
@@ -236,7 +237,13 @@ pub(super) fn import(
                         )?;
                     }
                 } else if step.get("thinkingMessage").is_some() {
-                    p.ignored.push("cursor-cli:thinking".into());
+                    adapters::native_content(
+                        Some(Role::Assistant),
+                        "thinkingMessage",
+                        &step["thinkingMessage"],
+                        1,
+                        &mut p,
+                    );
                 } else if let Some(tool) = step.get("toolCall") {
                     if let Some((name, call)) = tool
                         .as_object()

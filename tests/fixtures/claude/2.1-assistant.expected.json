@@ -35,6 +35,33 @@
           }
         }
       }
+    },
+    {
+      "event": {
+        "at": null,
+        "location": {
+          "byte_end": 143,
+          "byte_start": 0,
+          "event_index": 4,
+          "line_no": 1,
+          "record_index": 0
+        },
+        "message_id": null,
+        "record_id": null,
+        "record_type": "assistant",
+        "session_id": null,
+        "timestamp_text": null,
+        "value": {
+          "Content": {
+            "data": {
+              "thinking": "hidden",
+              "type": "thinking"
+            },
+            "kind": "thinking",
+            "role": "Assistant"
+          }
+        }
+      }
     }
   ],
   "summary": {
