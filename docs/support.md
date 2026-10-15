@@ -439,3 +439,15 @@ clippy `-D warnings` 通过；nightly 模糊测试 60 秒无崩溃，实际完�
 
 **当前有 4 个客户端取得真实新会话任务成功证据，其中 3 个可通过 Rust 自动重跑，
 Zed 为本次实际 GUI 操作。仍不满足“26 个客户端全部端到端验收通过”。**
+
+## 2026-10-15 本地候选抽样补充
+
+0.4.0 仍未发布。本次只读两份已有原生历史，没有调用模型或创建新任务。
+Claude 2.1.295 的 238 条正文、74 次工具调用、74 份结果和 57 个选定 Content，
+以及 Codex 0.162.1 的 75 条正文、144 次调用、144 份结果和 115 个选定 Content，
+均与独立 JSON 投影逐字段及物理字节偏移一致。
+
+Claude 样本有 `artifact-comment-monitor` / `artifact-autoreact-ledger` 各 4 条
+未知记录，`is_supported()` 仍返回 false；选定字段一致不能升级为全格式支持。
+Codex 该样本在 ResponseItems 模式下 supported=true。没有核验新任务端到端、
+全部分页模式或用量计费。方法、范围和候选升级边界见 [0.4.0 说明](release-0.4.md)。

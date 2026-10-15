@@ -18,8 +18,9 @@ an event back to its original record.
 [GitHub releases](https://github.com/majiayu000/agent-sessions/releases)
 
 The published release is [v0.3.0](https://github.com/majiayu000/agent-sessions/releases/tag/v0.3.0).
-`main` also contains unreleased content preservation, snapshot replay and native
-storage improvements listed in the [changelog](CHANGELOG.md#unreleased).
+This checkout prepares an **unpublished 0.4.0 candidate** with content preservation,
+snapshot replay and native storage improvements listed in the [changelog](CHANGELOG.md#unreleased).
+See the [upgrade and verification notes](docs/release-0.4.md) before consuming it.
 The `0.3.0` dependency below selects the published package; use this checkout
 to try the unreleased additions.
 
