@@ -14,13 +14,18 @@ fn body(v: &Value) -> String {
     v.as_array()
         .into_iter()
         .flatten()
-        .filter(|b| {
-            matches!(
+        .filter_map(|b| {
+            if let Some(text) = b.as_str() {
+                Some(text)
+            } else if matches!(
                 b["type"].as_str(),
-                Some("text" | "input_text" | "output_text")
-            )
+                Some("text" | "input_text" | "output_text" | "Text" | "inputText")
+            ) {
+                b["text"].as_str()
+            } else {
+                None
+            }
         })
-        .filter_map(|b| b["text"].as_str())
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -66,6 +71,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     // Capture once, compare the same immutable bytes; no private copy is written.
     let bytes = std::fs::read(path).map_err(|_| "cannot read session")?;
+    verify(agent, &bytes)
+}
+
+fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
     let mut expected: [Vec<Value>; 4] = Default::default();
     let mut versions = BTreeSet::new();
     let mut start = 0;
@@ -143,6 +152,41 @@ fn main() -> Result<(), Box<dyn Error>> {
                     &loc,
                     json!([p["call_id"], p["output"], body(&p["output"])]),
                 ),
+                Some("web_search_call" | "tool_search_call") => {
+                    let web = p["type"] == "web_search_call";
+                    let id = if web {
+                        p["id"].as_str()
+                    } else {
+                        p["call_id"].as_str().or_else(|| p["id"].as_str())
+                    };
+                    let name = if web { "web_search" } else { "tool_search" };
+                    let arguments = p
+                        .get(if web { "action" } else { "arguments" })
+                        .filter(|value| !value.is_null());
+                    push(
+                        &mut expected,
+                        1,
+                        &loc,
+                        json!([id, name, args(arguments, true)]),
+                    );
+                    if web && matches!(p["status"].as_str(), Some("completed" | "failed")) {
+                        push(
+                            &mut expected,
+                            2,
+                            &loc,
+                            json!([id, p, search_result_text(p)]),
+                        );
+                    }
+                }
+                Some("tool_search_output") => {
+                    let id = p["call_id"].as_str().or_else(|| p["id"].as_str());
+                    push(
+                        &mut expected,
+                        2,
+                        &loc,
+                        json!([id, p, search_result_text(p)]),
+                    );
+                }
                 Some("reasoning") => push(&mut expected, 3, &loc, p.clone()),
                 _ => {}
             }
@@ -152,7 +196,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         codex_content: CodexContentMode::ResponseItems,
         ..Default::default()
     };
-    let result = import_session_from(agent, Cursor::new(&bytes), &opts)
+    let result = import_session_from(agent, Cursor::new(bytes), &opts)
         .map_err(|_| "native import failed (private values withheld)")?;
     let mut actual: [Vec<Value>; 4] = Default::default();
     let mut usages = 0;
@@ -218,4 +262,48 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("native history verification failed (private values withheld)".into());
     }
     Ok(())
+}
+
+fn search_result_text(value: &Value) -> String {
+    value
+        .get("text")
+        .or_else(|| value.get("content"))
+        .filter(|value| value.is_string() || value.is_array())
+        .map(body)
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn supported_codex_search_history_matches_with_physical_offsets() {
+        let mut items = vec![
+            json!({"type":"message","role":"user","content":[{"type":"input_text","text":"搜索 fixture"}]}),
+        ];
+        for status in ["in_progress", "completed", "failed"] {
+            items.push(json!({"type":"web_search_call","id":status,"status":status,"action":{"type":"search","query":"fixture"}}));
+        }
+        items.push(json!({"type":"tool_search_call","id":"missing-arguments"}));
+        // Native tool search supports both identity fields and missing/raw/JSON arguments.
+        for id_field in ["call_id", "id"] {
+            for arguments in [Value::Null, json!("raw query"), json!({"query":"fixture"})] {
+                items.push(
+                    json!({"type":"tool_search_call",id_field:"search","arguments":arguments}),
+                );
+                let text_field = if id_field == "call_id" {
+                    "text"
+                } else {
+                    "content"
+                };
+                items.push(json!({"type":"tool_search_output",id_field:"search","status":"completed","tools":[{"name":"fixture"}],text_field:["found", {"type":"output_text","text":"fixture"}]}));
+            }
+        }
+        let bytes = items
+            .iter()
+            .map(|item| format!("{}\r\n", json!({"type":"response_item","payload":item})))
+            .collect::<String>();
+        verify(Agent::Codex, bytes.as_bytes()).unwrap();
+    }
 }
