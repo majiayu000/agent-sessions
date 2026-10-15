@@ -42,20 +42,23 @@ fn push(out: &mut [Vec<Value>; 4], kind: usize, loc: &Value, data: Value) {
 }
 fn selected_content(c: &Value, loc: &Value, out: &mut [Vec<Value>; 4]) {
     for block in c.as_array().into_iter().flatten() {
-        if matches!(
-            block["type"].as_str(),
-            Some(
-                "thinking"
-                    | "redacted_thinking"
-                    | "reasoning"
-                    | "image"
-                    | "document"
-                    | "tool_reference"
-            )
-        ) {
+        if is_selected_content(block) {
             push(out, 3, loc, block.clone());
         }
     }
+}
+fn is_selected_content(block: &Value) -> bool {
+    matches!(
+        block["type"].as_str(),
+        Some(
+            "thinking"
+                | "redacted_thinking"
+                | "reasoning"
+                | "image"
+                | "document"
+                | "tool_reference"
+        )
+    )
 }
 fn claude_tools(c: &Value, loc: &Value, out: &mut [Vec<Value>; 4]) {
     for b in c.as_array().into_iter().flatten() {
@@ -144,8 +147,18 @@ fn verify_import(agent: Agent, bytes: &[u8], result: &SessionImport) -> Result<(
                 );
             }
         } else if v["type"] == "user_message" {
-            push(&mut expected, 0, &loc, json!(["user", body(&v["content"])]));
-            selected_content(&v["content"], &loc, &mut expected);
+            // Early envelopes admit untyped text and mark thought blocks separately.
+            push(
+                &mut expected,
+                0,
+                &loc,
+                json!(["user", block_body(v.get("content"))]),
+            );
+            for block in v["content"].as_array().into_iter().flatten() {
+                if block["thought"] == true || is_selected_content(block) {
+                    push(&mut expected, 3, &loc, block.clone());
+                }
+            }
         } else if v["type"] == "response_item" {
             let p = &v["payload"];
             let legacy_message = p.get("type").is_none() && p.get("content").is_some();
@@ -293,7 +306,10 @@ fn verify_import(agent: Agent, bytes: &[u8], result: &SessionImport) -> Result<(
 }
 
 fn search_result_text(value: &Value) -> String {
-    let content = value.get("text").or_else(|| value.get("content"));
+    block_body(value.get("text").or_else(|| value.get("content")))
+}
+
+fn block_body(content: Option<&Value>) -> String {
     match content {
         Some(Value::String(text)) => text.clone(),
         Some(Value::Array(blocks)) => blocks
@@ -384,6 +400,31 @@ mod tests {
                 json!({"type":"response_item","payload":{"content":[{"type":"text","text":"early answer"}]}}),
                 json!({"type":"response_item","payload":{"type":"message","role":"assistant","content":"current answer"}}),
             ]);
+            verify(Agent::Codex, bytes.as_bytes()).unwrap();
+        }
+    }
+
+    #[test]
+    fn supported_codex_early_untyped_text_matches() {
+        let bytes = history(&[json!({"type":"user_message","content":[
+            {"text":"早期 untyped"}, "plain text", {"type":"text","text":"typed"}
+        ]})]);
+        verify(Agent::Codex, bytes.as_bytes()).unwrap();
+    }
+
+    #[test]
+    fn supported_codex_early_thought_blocks_match_in_order() {
+        for thought in [
+            json!({"type":"text","text":"thought","thought":true}),
+            json!({"text":"untyped thought","thought":true}),
+            json!({"type":"image","url":"fixture","thought":true}),
+        ] {
+            let bytes = history(&[json!({"type":"user_message","content":[
+                {"type":"reasoning","text":"before"},
+                thought,
+                {"type":"document","data":"after"},
+                {"type":"text","text":"visible","thought":false}
+            ]})]);
             verify(Agent::Codex, bytes.as_bytes()).unwrap();
         }
     }
