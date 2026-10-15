@@ -2,7 +2,8 @@
 //! No model calls, discovery, transcript output, IDs, tool names or paths are printed.
 //! This checks selected field projections and byte provenance, not a new-task E2E.
 use agent_sessions::{
-    Agent, CodexContentMode, Event, ImportSource, ReadOptions, ToolArgs, import_session_from,
+    Agent, CodexContentMode, Event, ImportSource, ReadOptions, SessionImport, ToolArgs,
+    import_session_from,
 };
 use serde_json::{Value, json};
 use std::{collections::BTreeSet, error::Error, io::Cursor};
@@ -38,6 +39,23 @@ fn args(v: Option<&Value>, raw: bool) -> Value {
 }
 fn push(out: &mut [Vec<Value>; 4], kind: usize, loc: &Value, data: Value) {
     out[kind].push(json!([loc, data]));
+}
+fn selected_content(c: &Value, loc: &Value, out: &mut [Vec<Value>; 4]) {
+    for block in c.as_array().into_iter().flatten() {
+        if matches!(
+            block["type"].as_str(),
+            Some(
+                "thinking"
+                    | "redacted_thinking"
+                    | "reasoning"
+                    | "image"
+                    | "document"
+                    | "tool_reference"
+            )
+        ) {
+            push(out, 3, loc, block.clone());
+        }
+    }
 }
 fn claude_tools(c: &Value, loc: &Value, out: &mut [Vec<Value>; 4]) {
     for b in c.as_array().into_iter().flatten() {
@@ -75,6 +93,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    let opts = ReadOptions {
+        codex_content: CodexContentMode::ResponseItems,
+        ..Default::default()
+    };
+    let result = import_session_from(agent, Cursor::new(bytes), &opts)
+        .map_err(|_| "native import failed (private values withheld)")?;
+    verify_import(agent, bytes, &result)
+}
+
+fn verify_import(agent: Agent, bytes: &[u8], result: &SessionImport) -> Result<(), Box<dyn Error>> {
     let mut expected: [Vec<Value>; 4] = Default::default();
     let mut versions = BTreeSet::new();
     let mut start = 0;
@@ -97,24 +125,17 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
         }
         if agent == Agent::ClaudeCode {
             let kind = v["type"].as_str().unwrap_or("");
-            if matches!(kind, "user" | "assistant") {
-                let c = &v["message"]["content"];
-                push(&mut expected, 0, &loc, json!([kind, body(c)]));
-                claude_tools(c, &loc, &mut expected);
-                for b in c.as_array().into_iter().flatten() {
-                    if matches!(
-                        b["type"].as_str(),
-                        Some(
-                            "thinking"
-                                | "redacted_thinking"
-                                | "image"
-                                | "document"
-                                | "tool_reference"
-                        )
-                    ) {
-                        push(&mut expected, 3, &loc, b.clone());
-                    }
+            if matches!(kind, "user" | "assistant" | "system") {
+                let c = if kind == "system" {
+                    v.pointer("/message/content").unwrap_or(&v["content"])
+                } else {
+                    &v["message"]["content"]
+                };
+                if kind != "system" {
+                    push(&mut expected, 0, &loc, json!([kind, body(c)]));
+                    claude_tools(c, &loc, &mut expected);
                 }
+                selected_content(c, &loc, &mut expected);
             } else if kind == "progress" {
                 claude_tools(
                     &v["data"]["message"]["message"]["content"],
@@ -122,6 +143,9 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
                     &mut expected,
                 );
             }
+        } else if v["type"] == "user_message" {
+            push(&mut expected, 0, &loc, json!(["user", body(&v["content"])]));
+            selected_content(&v["content"], &loc, &mut expected);
         } else if v["type"] == "response_item" {
             let p = &v["payload"];
             let legacy_message = p.get("type").is_none() && p.get("content").is_some();
@@ -140,21 +164,7 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
                     if matches!(role, Some("user" | "assistant")) {
                         push(&mut expected, 0, &loc, json!([role, body(&p["content"])]));
                     }
-                    for block in p["content"].as_array().into_iter().flatten() {
-                        if matches!(
-                            block["type"].as_str(),
-                            Some(
-                                "thinking"
-                                    | "redacted_thinking"
-                                    | "reasoning"
-                                    | "image"
-                                    | "document"
-                                    | "tool_reference"
-                            )
-                        ) {
-                            push(&mut expected, 3, &loc, block.clone());
-                        }
-                    }
+                    selected_content(&p["content"], &loc, &mut expected);
                 }
                 Some("function_call" | "custom_tool_call") => {
                     let key = if p["type"] == "function_call" {
@@ -215,12 +225,6 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
             }
         }
     }
-    let opts = ReadOptions {
-        codex_content: CodexContentMode::ResponseItems,
-        ..Default::default()
-    };
-    let result = import_session_from(agent, Cursor::new(bytes), &opts)
-        .map_err(|_| "native import failed (private values withheld)")?;
     let mut actual: [Vec<Value>; 4] = Default::default();
     let mut usages = 0;
     for e in &result.events {
@@ -281,7 +285,8 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
         "supported":result.summary.is_supported(),"unknown_type_count":result.summary.unknown_types.len(),
         "evidence":"existing native history, response-item mode; no new task or model call"})
     );
-    if !result.summary.is_supported() || matched.contains(&false) || counts[0] == 0 {
+    if !result.summary.is_supported() || matched.contains(&false) || counts.iter().all(|n| *n == 0)
+    {
         return Err("native history verification failed (private values withheld)".into());
     }
     Ok(())
@@ -316,6 +321,158 @@ fn search_result_text(value: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn history(records: &[Value]) -> String {
+        // Exercise physical line/byte offsets, UTF-8 and an unterminated final line.
+        format!(
+            "\r\n{}",
+            records
+                .iter()
+                .map(Value::to_string)
+                .collect::<Vec<_>>()
+                .join("\r\n\n")
+        )
+    }
+
+    #[test]
+    fn supported_claude_system_selected_content_matches() {
+        let content = json!([
+            {"type":"text","text":"系统 fixture"},
+            {"type":"thinking","thinking":"fixture"},
+            {"type":"redacted_thinking","data":"fixture"},
+            {"type":"reasoning","text":"fixture"},
+            {"type":"image","url":"fixture"},
+            {"type":"document","data":"fixture"},
+            {"type":"tool_reference","name":"fixture"}
+        ]);
+        for system in [
+            json!({"type":"system","content":content}),
+            json!({"type":"system","message":{"content":content},"content":[]}),
+        ] {
+            let bytes = history(&[
+                json!({"type":"user","message":{"content":"fixture"}}),
+                system,
+            ]);
+            verify(Agent::ClaudeCode, bytes.as_bytes()).unwrap();
+        }
+    }
+
+    #[test]
+    fn supported_claude_user_assistant_reasoning_matches() {
+        for role in ["user", "assistant"] {
+            let bytes = history(&[json!({"type":role,"message":{"content":[
+                {"type":"text","text":"推理 fixture"},
+                {"type":"reasoning","text":"fixture"}
+            ]}})]);
+            verify(Agent::ClaudeCode, bytes.as_bytes()).unwrap();
+        }
+    }
+
+    #[test]
+    fn supported_codex_early_user_message_matches() {
+        for content in [
+            json!("早期 request"),
+            json!([{"type":"input_text","text":"早期 request"}]),
+            json!([
+                {"type":"input_text","text":"早期 request"},
+                {"type":"reasoning","text":"fixture"},
+                {"type":"image","url":"fixture"}
+            ]),
+        ] {
+            let bytes = history(&[
+                json!({"type":"user_message","content":content}),
+                json!({"type":"response_item","payload":{"content":[{"type":"text","text":"early answer"}]}}),
+                json!({"type":"response_item","payload":{"type":"message","role":"assistant","content":"current answer"}}),
+            ]);
+            verify(Agent::Codex, bytes.as_bytes()).unwrap();
+        }
+    }
+
+    #[test]
+    fn supported_histories_without_text_messages_match() {
+        let fixtures = [
+            (
+                Agent::Codex,
+                vec![
+                    json!({"type":"response_item","payload":{"type":"function_call","call_id":"fixture","name":"fixture","arguments":"{}"}}),
+                    json!({"type":"response_item","payload":{"type":"function_call_output","call_id":"fixture","output":"done"}}),
+                ],
+            ),
+            (
+                Agent::Codex,
+                vec![json!({"type":"response_item","payload":{"type":"reasoning","summary":[]}})],
+            ),
+            (
+                Agent::ClaudeCode,
+                vec![
+                    json!({"type":"progress","data":{"message":{"message":{"content":[
+                        {"type":"tool_use","id":"fixture","name":"fixture","input":{}},
+                        {"type":"tool_result","tool_use_id":"fixture","content":"done"}
+                    ]}}}}),
+                ],
+            ),
+            (
+                Agent::ClaudeCode,
+                vec![json!({"type":"system","content":[{"type":"thinking","thinking":"fixture"}]})],
+            ),
+        ];
+        for (agent, records) in fixtures {
+            verify(agent, history(&records).as_bytes()).unwrap();
+        }
+    }
+
+    #[test]
+    fn vacuous_histories_are_rejected() {
+        for agent in [Agent::ClaudeCode, Agent::Codex] {
+            assert!(verify(agent, b" \r\n\n").is_err());
+        }
+        let bytes = history(&[json!({"type":"system","content":"unselected system text"})]);
+        assert!(verify(Agent::ClaudeCode, bytes.as_bytes()).is_err());
+        let bytes = history(&[
+            json!({"type":"response_item","payload":{"type":"message","role":"system","content":"unselected system text"}}),
+        ]);
+        assert!(verify(Agent::Codex, bytes.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn mismatched_text_and_offsets_are_rejected_without_private_values() {
+        let bytes =
+            history(&[json!({"type":"assistant","message":{"content":"synthetic private text"}})]);
+        let import = || {
+            import_session_from(
+                Agent::ClaudeCode,
+                Cursor::new(bytes.as_bytes()),
+                &ReadOptions::default(),
+            )
+            .unwrap()
+        };
+        let original = import();
+        verify_import(Agent::ClaudeCode, bytes.as_bytes(), &original).unwrap();
+        for change_offset in [false, true] {
+            let mut result = import();
+            let event = result
+                .events
+                .iter_mut()
+                .find(|event| matches!(event.value, Event::Message(_)))
+                .unwrap();
+            if change_offset {
+                let ImportSource::Record(loc) = &mut event.sources[0] else {
+                    panic!("record source required")
+                };
+                loc.byte_start += 1;
+            } else {
+                let Event::Message(message) = &mut event.value else {
+                    unreachable!()
+                };
+                message.text.push_str(" corrupted");
+            }
+            let error = verify_import(Agent::ClaudeCode, bytes.as_bytes(), &result).unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                "native history verification failed (private values withheld)"
+            );
+        }
+    }
 
     fn verify_codex_items(items: &[Value]) -> Result<(), Box<dyn Error>> {
         let bytes = items
