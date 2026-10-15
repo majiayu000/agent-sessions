@@ -124,14 +124,37 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
             }
         } else if v["type"] == "response_item" {
             let p = &v["payload"];
-            match p["type"].as_str() {
-                Some("message") if matches!(p["role"].as_str(), Some("user" | "assistant")) => {
-                    push(
-                        &mut expected,
-                        0,
-                        &loc,
-                        json!([p["role"], body(&p["content"])]),
-                    )
+            let legacy_message = p.get("type").is_none() && p.get("content").is_some();
+            let kind = if legacy_message {
+                Some("message")
+            } else {
+                p["type"].as_str()
+            };
+            match kind {
+                Some("message") => {
+                    let role = if legacy_message {
+                        Some("assistant")
+                    } else {
+                        p["role"].as_str()
+                    };
+                    if matches!(role, Some("user" | "assistant")) {
+                        push(&mut expected, 0, &loc, json!([role, body(&p["content"])]));
+                    }
+                    for block in p["content"].as_array().into_iter().flatten() {
+                        if matches!(
+                            block["type"].as_str(),
+                            Some(
+                                "thinking"
+                                    | "redacted_thinking"
+                                    | "reasoning"
+                                    | "image"
+                                    | "document"
+                                    | "tool_reference"
+                            )
+                        ) {
+                            push(&mut expected, 3, &loc, block.clone());
+                        }
+                    }
                 }
                 Some("function_call" | "custom_tool_call") => {
                     let key = if p["type"] == "function_call" {
@@ -265,17 +288,76 @@ fn verify(agent: Agent, bytes: &[u8]) -> Result<(), Box<dyn Error>> {
 }
 
 fn search_result_text(value: &Value) -> String {
-    value
-        .get("text")
-        .or_else(|| value.get("content"))
-        .filter(|value| value.is_string() || value.is_array())
-        .map(body)
-        .unwrap_or_default()
+    let content = value.get("text").or_else(|| value.get("content"));
+    match content {
+        Some(Value::String(text)) => text.clone(),
+        Some(Value::Array(blocks)) => blocks
+            .iter()
+            .filter_map(|block| {
+                if let Some(text) = block.as_str() {
+                    return Some(text);
+                }
+                if block["thought"] == true {
+                    return None;
+                }
+                match block["type"].as_str() {
+                    None | Some("text" | "input_text" | "output_text" | "Text" | "inputText") => {
+                        block["text"].as_str()
+                    }
+                    _ => None,
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n"),
+        _ => String::new(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn verify_codex_items(items: &[Value]) -> Result<(), Box<dyn Error>> {
+        let bytes = items
+            .iter()
+            .map(|item| format!("{}\r\n", json!({"type":"response_item","payload":item})))
+            .collect::<String>();
+        verify(Agent::Codex, bytes.as_bytes())
+    }
+
+    #[test]
+    fn supported_codex_untyped_message_matches() {
+        verify_codex_items(&[json!({"content":[{"type":"output_text","text":"early rollout"}]})])
+            .unwrap();
+    }
+
+    #[test]
+    fn supported_codex_search_untyped_text_matches() {
+        verify_codex_items(&[
+            json!({"type":"message","role":"user","content":"search"}),
+            json!({"type":"web_search_call","id":"web","status":"completed","text":[{"text":"found"},{"text":"private thought","thought":true}]}),
+            json!({"type":"tool_search_output","call_id":"tool","content":[{"text":"found"}]}),
+        ]).unwrap();
+    }
+
+    #[test]
+    fn supported_codex_nested_selected_content_matches() {
+        for role in ["user", "assistant", "system", "developer"] {
+            verify_codex_items(&[
+                json!({"type":"message","role":"user","content":"fixture"}),
+                json!({"type":"message","role":role,"content":[
+                    {"type":"output_text","text":"visible"},
+                    {"type":"reasoning","text":"reasoning fixture"},
+                    {"type":"image","url":"fixture"},
+                    {"type":"document","data":"fixture"},
+                    {"type":"tool_reference","name":"fixture"},
+                    {"type":"thinking","thinking":"fixture"},
+                    {"type":"redacted_thinking","data":"fixture"}
+                ]}),
+            ])
+            .unwrap();
+        }
+    }
 
     #[test]
     fn supported_codex_search_history_matches_with_physical_offsets() {
