@@ -194,12 +194,24 @@ pub fn import_session_from<R: BufRead>(
             max_line_bytes: opts.max_line_bytes,
         },
     )?;
+    // Replay-only sources never consume a contiguous document. Document-only
+    // sources do not need physical records after framing. Gemini needs both for
+    // its legacy-document/native-journal fallback, including record provenance.
+    let replay_only = matches!(
+        agent,
+        Agent::CodeBuddy | Agent::Pi | Agent::KimiCli | Agent::Grok
+    );
+    let keep_records = replay_only || agent == Agent::GeminiCli;
     let mut bytes = Vec::new();
     let mut records = Vec::new();
     for record in raw.by_ref() {
         let record = record?;
-        bytes.extend_from_slice(&record.bytes);
-        records.push(record);
+        if !replay_only {
+            bytes.extend_from_slice(&record.bytes);
+        }
+        if keep_records {
+            records.push(record);
+        }
     }
     let raw_summary = raw.finish();
     let summary = ReadSummary {

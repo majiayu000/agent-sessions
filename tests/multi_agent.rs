@@ -1596,3 +1596,94 @@ fn new_native_malformed_roles_bodies_and_variants_do_not_look_supported() {
     assert!(texts(&unknown).is_empty());
     assert_eq!(unknown.summary.unknown_types.len(), 2);
 }
+
+#[test]
+fn snapshot_storage_paths_keep_framing_provenance_and_prefix_contracts() {
+    use std::io::BufReader;
+    // All replay-only stores, the Gemini fallback, and a document-only store.
+    for (agent, native) in [
+        (
+            Agent::CodeBuddy,
+            json!({"type":"user","message":{"content":"中文"}}),
+        ),
+        (
+            Agent::Pi,
+            json!({"type":"message","message":{"role":"user","content":"中文"}}),
+        ),
+        (Agent::KimiCli, json!({"role":"user","content":"中文"})),
+        (Agent::Grok, json!({"type":"user","content":"中文"})),
+        (
+            Agent::GeminiCli,
+            json!({"$set":{"sessionId":"g","messages":[{"id":"u","type":"user","content":"中文"}]}}),
+        ),
+        (Agent::Cline, json!([{"role":"user","content":"中文"}])),
+    ] {
+        let data = if agent == Agent::Cline {
+            serde_json::to_string_pretty(&native)
+                .unwrap()
+                .replace('\n', "\r\n")
+                + "\r\n"
+        } else {
+            native.to_string() + "\r\n"
+        };
+        let prefix = data.len() as u64;
+        let full = data.clone() + "unread invalid suffix";
+        let opts = ReadOptions {
+            stop_at_byte: Some(prefix),
+            max_file_bytes: Some(prefix),
+            ..Default::default()
+        };
+        let r = import_session_from(agent, BufReader::with_capacity(1, Cursor::new(full)), &opts)
+            .unwrap();
+        assert!(r.summary.is_supported(), "{agent:?}");
+        assert_eq!(r.summary.bytes_read, prefix);
+        assert_eq!(r.summary.last_complete_byte, prefix);
+        assert_eq!(texts(&r), [(Role::User, "中文")]);
+        let e = r
+            .events
+            .iter()
+            .find(|e| matches!(e.value, Event::Message(_)))
+            .unwrap();
+        if agent == Agent::Cline {
+            assert_eq!(e.sources, [ImportSource::JsonPointer("/0".into())]);
+            assert_eq!(r.summary.lines, data.lines().count() as u64);
+        } else {
+            let [ImportSource::Record(loc)] = e.sources.as_slice() else {
+                panic!("missing record");
+            };
+            assert_eq!(
+                (loc.record_index, loc.line_no, loc.byte_start, loc.byte_end),
+                (0, 1, 0, prefix)
+            );
+            assert_eq!(r.summary.lines, 1);
+            let incomplete = data.clone() + "{\"type\":";
+            let partial = import_session_from(
+                agent,
+                Cursor::new(&incomplete),
+                &ReadOptions {
+                    tail: TailMode::AllowIncomplete,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(partial.events, r.events);
+            assert_eq!(partial.summary.status, ReadStatus::IncompleteTail);
+            assert!(!partial.summary.is_supported());
+            assert!(
+                import_session_from(agent, Cursor::new(incomplete), &ReadOptions::default())
+                    .is_err()
+            );
+        }
+        assert!(matches!(
+            import_session_from(
+                agent,
+                Cursor::new(&data),
+                &ReadOptions {
+                    max_file_bytes: Some(prefix - 1),
+                    ..Default::default()
+                }
+            ),
+            Err(ImportError::Stream(StreamError::TooLarge { .. }))
+        ));
+    }
+}

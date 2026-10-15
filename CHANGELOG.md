@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+Preparing 0.4.0 locally; not published. See [upgrade notes](docs/release-0.4.md).
+
+- Avoid the unused contiguous copy for CodeBuddy/Pi/Kimi/Grok replay imports;
+  document-only imports now retain only the contiguous document. Gemini keeps
+  both representations for document/JSONL fallback and physical provenance.
+- Add an explicit-file native-history comparison example for Claude and Codex,
+  checking text, tools, selected native content and byte provenance without
+  printing private payloads. Claude 2.1.295 artifact ledger records remain
+  unknown; successful field comparison is not a full-support claim.
+
 - Preserve native non-text content through `Event::Content` and
   `EventKinds::CONTENT`, including thinking, signatures, media references,
   attachments and context controls. Keep structured Claude/Codex tool outputs.
