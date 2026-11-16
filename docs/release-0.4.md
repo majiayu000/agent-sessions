@@ -4,6 +4,11 @@ This candidate is **not published**. The version in Cargo.toml identifies a loca
 package for review. No consumer repository has been upgraded, and these checks do
 not certify 26 real clients or a production migration.
 
+The [2026-11-16 consumer acceptance](consumer-acceptance-2026-11-16.md) exercises
+real CCP application handlers but keeps the release decision pending: CCP is
+superseded, its raw/projection paths do not validate the new snapshot semantics,
+and active ccstats cannot resolve the candidate's native SQLite dependency graph.
+
 ## Upgrade boundary
 
 0.4.0 is a conservative minor-version boundary for changed default output and
