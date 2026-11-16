@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-16)
 
-Preparing 0.4.0 locally; not published. See [upgrade notes](docs/release-0.4.md).
+See [upgrade notes](docs/release-0.4.md).
 
-- Raise the unpublished 0.4 candidate's minimum Rust version to 1.89 and align
+- Raise the minimum Rust version to 1.89 and align
   rusqlite with 0.41.1 for the active ccstats SQLite graph. Published 0.3.0 and
   its Rust 1.88 contract are unchanged.
 

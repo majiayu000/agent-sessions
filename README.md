@@ -17,12 +17,10 @@ an event back to its original record.
 [Claude Code & Codex JSONL format reference](docs/formats.md) ·
 [GitHub releases](https://github.com/majiayu000/agent-sessions/releases)
 
-The published release is [v0.3.0](https://github.com/majiayu000/agent-sessions/releases/tag/v0.3.0).
-This checkout prepares an **unpublished 0.4.0 candidate** with content preservation,
-snapshot replay and native storage improvements listed in the [changelog](CHANGELOG.md#unreleased).
-See the [upgrade and verification notes](docs/release-0.4.md) before consuming it.
-The `0.3.0` dependency below selects the published package; use this checkout
-to try the unreleased additions.
+Version [v0.4.0](https://github.com/majiayu000/agent-sessions/releases/tag/v0.4.0)
+adds content preservation, snapshot replay and native storage improvements.
+See the [upgrade and verification notes](docs/release-0.4.md) before upgrading;
+0.4 requires Rust 1.89 and changes default content/snapshot output.
 
 JSON/patch-based sessions use `import_session`; native OpenCode, Goose, Hermes,
 Cursor, Cursor Agent CLI, ZCode, Zed and Warp SQLite sessions use read-only
@@ -80,7 +78,7 @@ Claude cache counters, history timestamps, and incomplete JSONL tails.
 
 ```toml
 [dependencies]
-agent-sessions = "0.3.0"
+agent-sessions = "0.4.0"
 ```
 
 ```rust
@@ -235,11 +233,11 @@ counted separately from unknown types. Summaries never contain message text.
 
 ## Development
 
-The unpublished 0.4 candidate requires Rust 1.89+; published 0.3.0 retains Rust
+Version 0.4 requires Rust 1.89+; version 0.3.0 retains Rust
 1.88. Synchronous IO; no runtime network dependency. Native database readers use
-bundled SQLite in read-only transactions. The candidate uses rusqlite 0.41.1 to
+bundled SQLite in read-only transactions. Version 0.4 uses rusqlite 0.41.1 to
 share the active ccstats consumer's native SQLite dependency graph; see the
-[candidate dependency contract](docs/release-0.4.md#candidate-dependency-and-minimum-rust-contract).
+[dependency contract](docs/release-0.4.md#candidate-dependency-and-minimum-rust-contract).
 
 ```sh
 cargo +1.95.0 fmt --check
