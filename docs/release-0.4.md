@@ -1,8 +1,7 @@
-# 0.4.0 local release candidate — 2026-10-15
+# agent-sessions 0.4.0 — 2026-11-16
 
-This candidate is **not published**. The version in Cargo.toml identifies a local
-package for review. No consumer repository has been upgraded, and these checks do
-not certify 26 real clients or a production migration.
+This release requires Rust 1.89. No installed consumer has been upgraded by
+publication; validation does not certify 26 real clients or a production migration.
 
 The [2026-11-16 consumer acceptance](consumer-acceptance-2026-11-16.md) retains
 the first CCP comparison and ccstats dependency conflict. The follow-through
@@ -11,7 +10,7 @@ new package and application results are recorded separately from that history.
 
 ## Candidate dependency and minimum Rust contract
 
-The unpublished 0.4 candidate now requires **Rust 1.89** and rusqlite 0.41.1.
+Version 0.4 requires **Rust 1.89** and rusqlite 0.41.1.
 This is an explicit candidate-only MSRV change to resolve the native SQLite
 link conflict with ccstats 0.12.0, without changing that consumer's database
 dependency or adding a compatibility/feature layer. Published 0.3.0 retains its
@@ -48,8 +47,7 @@ stream/raw APIs instead. Grok snapshots, OpenCode file provenance, and Zed's raw
 JSON tool inputs are also included; none of these changes was in the 0.3.0 tag.
 
 To evaluate the packaged candidate, unpack `agent-sessions-0.4.0.crate` and use a
-path dependency on its `agent-sessions-0.4.0` directory. After a separately authorized
-registry release, consumers choosing the new behavior must change their dependency
+path dependency on its `agent-sessions-0.4.0` directory. Consumers choosing the new behavior must change their dependency
 to `agent-sessions = "0.4"`; a `"0.3.0"` requirement does not select 0.4.
 
 ## Verification scope
