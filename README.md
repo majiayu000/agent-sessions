@@ -235,13 +235,16 @@ counted separately from unknown types. Summaries never contain message text.
 
 ## Development
 
-Rust 1.88+; synchronous IO; no runtime network dependency. Native database readers
-use bundled SQLite in read-only transactions.
+The unpublished 0.4 candidate requires Rust 1.89+; published 0.3.0 retains Rust
+1.88. Synchronous IO; no runtime network dependency. Native database readers use
+bundled SQLite in read-only transactions. The candidate uses rusqlite 0.41.1 to
+share the active ccstats consumer's native SQLite dependency graph; see the
+[candidate dependency contract](docs/release-0.4.md#candidate-dependency-and-minimum-rust-contract).
 
 ```sh
 cargo +1.95.0 fmt --check
 cargo +1.95.0 clippy --all-targets -- -D warnings
-cargo +1.88.0 test --locked --all-targets
+cargo +1.89.0 test --locked --all-targets
 cargo +1.95.0 test --doc
 cargo +1.95.0 run --release --example scan -- claude legacy
 cargo +1.95.0 run --release --example scan -- codex response 100
@@ -262,7 +265,7 @@ evidence of completed migrations or publication.
 
 ## Verification
 
-Results recorded on 2026-10-08:
+Historical results recorded on 2026-10-08 (before the 0.4 MSRV/dependency change):
 
 | Check | Result |
 |---|---|
@@ -284,7 +287,7 @@ Run the nine CLI entry points explicitly with installed clients and existing
 authentication. This makes real model requests and may incur charges:
 
 ```sh
-cargo +1.88.0 test --locked --test native_e2e -- --ignored --nocapture --test-threads=1
+cargo +1.89.0 test --locked --test native_e2e -- --ignored --nocapture --test-threads=1
 ```
 
 Ordinary `cargo test` does not run these live tests. Missing clients, failed

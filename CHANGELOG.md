@@ -4,6 +4,10 @@
 
 Preparing 0.4.0 locally; not published. See [upgrade notes](docs/release-0.4.md).
 
+- Raise the unpublished 0.4 candidate's minimum Rust version to 1.89 and align
+  rusqlite with 0.41.1 for the active ccstats SQLite graph. Published 0.3.0 and
+  its Rust 1.88 contract are unchanged.
+
 - Avoid the unused contiguous copy for CodeBuddy/Pi/Kimi/Grok replay imports;
   document-only imports now retain only the contiguous document. Gemini keeps
   both representations for document/JSONL fallback and physical provenance.
