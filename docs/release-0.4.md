@@ -4,10 +4,28 @@ This candidate is **not published**. The version in Cargo.toml identifies a loca
 package for review. No consumer repository has been upgraded, and these checks do
 not certify 26 real clients or a production migration.
 
-The [2026-11-16 consumer acceptance](consumer-acceptance-2026-11-16.md) exercises
-real CCP application handlers but keeps the release decision pending: CCP is
-superseded, its raw/projection paths do not validate the new snapshot semantics,
-and active ccstats cannot resolve the candidate's native SQLite dependency graph.
+The [2026-11-16 consumer acceptance](consumer-acceptance-2026-11-16.md) retains
+the first CCP comparison and ccstats dependency conflict. The follow-through
+below deliberately aligns the unpublished candidate with active ccstats; its
+new package and application results are recorded separately from that history.
+
+## Candidate dependency and minimum Rust contract
+
+The unpublished 0.4 candidate now requires **Rust 1.89** and rusqlite 0.41.1.
+This is an explicit candidate-only MSRV change to resolve the native SQLite
+link conflict with ccstats 0.12.0, without changing that consumer's database
+dependency or adding a compatibility/feature layer. Published 0.3.0 retains its
+original Rust 1.88 requirement and is not modified.
+
+The dependency's `fallible_uint` feature retains the existing checked unsigned
+SQLite length reads, which upstream rusqlite 0.41 made opt-in. It does not add a
+new agent-sessions feature, database mode or unchecked integer conversion.
+
+The candidate must pass checks on actual Rust 1.89 and the packaged artifact
+must build in the unchanged active consumer's native dependency graph. Existing
+usage, details and tool projections must preserve their application semantics.
+These gates do not require the consumer to adopt Content or snapshot APIs it
+does not use, nor do they establish downstream use of those new surfaces.
 
 ## Upgrade boundary
 
@@ -62,12 +80,15 @@ No transcript, private path, ID or tool payload was added to the repository or
 verification logs. These are existing-history import checks, **not new-task E2E**.
 Previous real-client observations remain in [support.md](support.md).
 
-The separate consumer smoke check uses the unpacked candidate, outside this
+The earlier separate consumer smoke check used the unpacked candidate, outside this
 crate. Its usage-only and metadata/message calls follow the current ccstats
 `src/source/session_reader.rs` and `src/session_details.rs` API shapes (ccstats
 currently requests 0.2.2 locally). It also exercises Content serialization, Pi
 branch replay and Zed raw JSON input. This is an external-crate API check, not
 building/running ccstats, proving independent adoption, cost parity or migration.
+See the dated consumer acceptance report for the subsequent real application
+checks and the dependency/MSRV follow-through, rather than reinterpreting this
+historical API-only check as an application result.
 
 ## Snapshot memory comparison
 

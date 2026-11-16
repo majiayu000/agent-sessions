@@ -1,5 +1,10 @@
 # Local verification — 2026-09-25
 
+This is a historical checkpoint. Its Rust 1.88 commands and results do not
+describe the unpublished 0.4 candidate's current MSRV; see the
+[Rust 1.89 candidate contract](release-0.4.md#candidate-dependency-and-minimum-rust-contract)
+and the [consumer follow-through](consumer-acceptance-2026-11-16.md).
+
 ## Completed
 
 * Rust 1.88.0 check and all-target tests: 36 integration tests passed. The one
@@ -19,7 +24,7 @@
 
 Commands: cargo fmt --check; cargo check --locked; cargo test --locked --all-targets;
 cargo test --locked --doc; cargo clippy --locked --all-targets -- -D warnings;
-cargo package --allow-dirty --locked. rust-toolchain.toml selects MSRV 1.88.0.
+cargo package --allow-dirty --locked. The historical rust-toolchain.toml selected MSRV 1.88.0.
 1.95.0 was also used for current-toolchain checks.
 
 ## Real-data reads

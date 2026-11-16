@@ -7,7 +7,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            toolchain: "1.88.0"
+            toolchain: "1.89.0"
           - os: ubuntu-latest
             toolchain: stable
           - os: macos-latest
