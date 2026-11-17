@@ -44,6 +44,18 @@ pub(super) fn qoder(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
             }
             Ok(())
         }
+        // SDK leaf pointer: automatic entries follow the newest appended
+        // record. A user-selected (rewound) leaf would hide appended entries.
+        "active-leaf" => {
+            if v.get("explicit").and_then(Value::as_bool) == Some(false)
+                && v.get("rewound").is_none_or(|r| r == false)
+            {
+                p.ignored.push("qoder:active-leaf".into())
+            } else {
+                p.unknown.push("qoder:active-leaf-explicit".into())
+            }
+            Ok(())
+        }
         "workspace-directories" => {
             p.ignored.push("qoder:workspace-directories".into());
             Ok(())

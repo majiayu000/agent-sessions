@@ -20,9 +20,9 @@ fn unhex(value: &str) -> Result<Vec<u8>, LineErrorKind> {
     if !value.len().is_multiple_of(2) {
         return Err(invalid("meta hex"));
     }
-    value
-        .as_bytes()
-        .chunks_exact(2)
+    let (pairs, _) = value.as_bytes().as_chunks::<2>();
+    pairs
+        .iter()
         .map(|b| {
             let s = std::str::from_utf8(b).map_err(|_| invalid("meta hex"))?;
             u8::from_str_radix(s, 16).map_err(|_| invalid("meta hex"))
@@ -62,7 +62,7 @@ pub(super) fn metadata(conn: &Connection, opts: &ReadOptions) -> Result<Value, I
 fn decode(name: &str, data: &[u8], summary: &mut ReadSummary) -> Result<Value, ImportError> {
     static POOL: OnceLock<Result<DescriptorPool, ()>> = OnceLock::new();
     let pool = POOL.get_or_init(|| {
-        DescriptorPool::decode(include_bytes!("protocols/cursor-agent-2026.10.01.pb").as_slice())
+        DescriptorPool::decode(include_bytes!("protocols/cursor-agent-2026.10.22.pb").as_slice())
             .map_err(|_| ())
     });
     let pool = pool
@@ -118,21 +118,25 @@ pub(super) fn import(
         return Err(invalid("agent ID does not match store").into());
     }
     let root_id = required(&meta, "latestRootBlobId")?;
-    let root = decode(
-        "agent.v1.ConversationStateStructure",
-        &bytes(conn, "blobs", root_id, opts)?,
-        &mut result.summary,
-    )?;
-    let sources = vec![
-        ImportSource::DatabaseRow {
-            table: "meta".into(),
-            key: "0".into(),
-        },
-        ImportSource::DatabaseRow {
+    let mut sources = vec![ImportSource::DatabaseRow {
+        table: "meta".into(),
+        key: "0".into(),
+    }];
+    // A new agent's default root is empty until its first checkpoint; the
+    // vendor then starts from an empty ConversationStateStructure.
+    let root = if root_id.is_empty() {
+        Value::Object(Default::default())
+    } else {
+        sources.push(ImportSource::DatabaseRow {
             table: "blobs".into(),
             key: root_id.into(),
-        },
-    ];
+        });
+        decode(
+            "agent.v1.ConversationStateStructure",
+            &bytes(conn, "blobs", root_id, opts)?,
+            &mut result.summary,
+        )?
+    };
     let state = State {
         session_id: Some(id.into()),
         model: string(&meta, "lastUsedModel"),
@@ -169,6 +173,24 @@ pub(super) fn import(
             key,
         });
         append(p, &state, src, result);
+    }
+    for utterance in array(&root, "voiceCallUtterances")? {
+        let mut p = Parsed {
+            include: opts.include,
+            ..Default::default()
+        };
+        // Speaker semantics are not defined by the vendor schema; keep it native.
+        adapters::native_content(None, "voiceCallUtterance", utterance, 0, &mut p);
+        append(p, &state, sources.clone(), result);
+    }
+    if ["writesVoiceCallUtterances", "voiceCallsReadUtterances"]
+        .iter()
+        .any(|key| root.get(key).is_some())
+    {
+        tally(
+            &mut result.summary.ignored_types,
+            "cursor-cli:voice-call-flags",
+        );
     }
     for reference in array(&root, "turns")? {
         let (turn, turn_source) = referenced(

@@ -16,6 +16,13 @@
   lifecycle, `token_counting.*` context-size estimates and file-history
   checkpoints as ignored. Move per-record Kimi v2 classification into its own
   module.
+- Cursor Agent CLI: regenerate the protobuf descriptors from CLI
+  2026.10.22-27dcf5f (field 46 `writes_voice_call_utterances` and other new
+  fields), keeping definitions removed upstream so older stores still decode;
+  read never-checkpointed stores (empty `latestRootBlobId`) as empty sessions;
+  keep voice-call utterances as native Content. Cursor IDE bubbles with
+  `createdAt: ""` read without a timestamp. Qoder automatic `active-leaf`
+  pointers are metadata; user-selected leaves stay unknown.
 
 ## 0.4.0 (2026-11-16)
 
