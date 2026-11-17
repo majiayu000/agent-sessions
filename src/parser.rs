@@ -121,9 +121,11 @@ pub(crate) fn text_projection(
                 }
             }
             "tool_use" | "tool_result" | "server_tool_use" => {}
+            // Anthropic server tool results, projected by the tool parser.
+            kind if kind.ends_with("_tool_result") => {}
             kind @ ("thinking" | "redacted_thinking" | "reasoning" | "image" | "input_image"
             | "output_image" | "document" | "tool_reference" | "input_audio"
-            | "output_audio" | "audio" | "video" | "file") => {
+            | "output_audio" | "audio" | "video" | "file" | "fallback") => {
                 if role.is_some() {
                     crate::adapters::native_content(role, kind, b, 3 + i, parsed);
                 }

@@ -87,3 +87,135 @@ fn workbuddy_unrecognized_result_status_stays_unknown() {
     assert!(!result.summary.is_supported());
     assert_eq!(result.summary.unknown_types["workbuddy:result-status"], 1);
 }
+
+fn claude(rows: &[Value]) -> SessionImport {
+    lines(Agent::ClaudeCode, rows)
+}
+
+// Claude Code 2.1.30x writes request snapshots beside the transcript: the
+// request parameters, the system prompt/tool shape and a hash-addressed copy
+// of each request message. They repeat transcript context, so they are kept
+// as Content and must not become a second set of messages or tool events.
+#[test]
+fn claude_request_snapshots_are_content_not_messages() {
+    let rows = [
+        json!({"type":"user","sessionId":"s","uuid":"u","message":{"role":"user","content":"问"}}),
+        json!({"type":"api-request","id":"r","sessionId":"s","timestamp":"2026-11-01T00:00:00Z","version":"2.1.326","base":"u","keep":1,"tail":["h"],"requestDigest":"d","shapeHash":"x","querySource":"sdk","cacheControl":[],"params":{"model":"m","max_tokens":1}}),
+        json!({"type":"api-request-blob","hash":"h","sessionId":"s","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"c","is_error":false,"content":"out"}]}}),
+        json!({"type":"api-request-blob","hash":"k","sessionId":"s","message":{"role":"assistant","content":[{"type":"thinking","thinking":"t","signature":"g"}]}}),
+        json!({"type":"api-request-shape","sessionId":"s","shapeHash":"x","timestamp":"2026-11-01T00:00:00Z","version":"2.1.326","shape":{"system":[{"type":"text","text":"sys"}],"tools":[{"name":"Read","description":"d","input_schema":{}}]}}),
+    ];
+    let result = claude(&rows);
+    assert!(result.summary.is_supported(), "{:?}", result.summary);
+    assert_eq!(
+        content_kinds(&result),
+        vec![
+            "api-request",
+            "api-request-blob",
+            "api-request-blob",
+            "api-request-shape"
+        ]
+    );
+    let roles: Vec<_> = result
+        .events
+        .iter()
+        .filter_map(|e| match &e.value {
+            Event::Content(c) if c.kind == "api-request-blob" => Some(c.role),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(roles, vec![Some(Role::User), Some(Role::Assistant)]);
+    let counted = result
+        .events
+        .iter()
+        .filter(|e| matches!(e.value, Event::Message(_) | Event::ToolResult(_)))
+        .count();
+    assert_eq!(counted, 1, "only the transcript user message is a message");
+}
+
+#[test]
+fn claude_session_bookkeeping_records_are_classified() {
+    let rows = [
+        json!({"type":"relocated","sessionId":"s","relocatedCwd":"/p"}),
+        json!({"type":"fork-context-ref","agentId":"a","contextLength":3,"parentLastUuid":"u","parentSessionId":"p"}),
+        json!({"type":"continued-in","sessionId":"s","continuedInSessionId":"n","timestamp":"2026-11-01T00:00:00Z"}),
+        json!({"type":"worktree-state","sessionId":"s","worktreeSession":{"originalCwd":"/p","worktreePath":"/w","worktreeBranch":"b"}}),
+        json!({"type":"artifact-comment-monitor","sessionId":"s","v":1,"artifacts":{"a":{"state":"open","title":"t","writtenAtMs":1}}}),
+        json!({"type":"artifact-autoreact-ledger","sessionId":"s","v":1,"accountUuid":"x","artifacts":{}}),
+        json!({"type":"session-owner","sessionId":"s","accountUuid":"x","organizationUuid":"y"}),
+        json!({"type":"tools-used","sessionId":"s","tools":["Read"]}),
+        json!({"type":"launched"}),
+        json!({"type":"failed","agentId":"a","key":"k"}),
+        json!({"type":"tag","sessionId":"s","tag":"label"}),
+    ];
+    let result = claude(&rows);
+    assert!(result.summary.is_supported(), "{:?}", result.summary);
+    assert_eq!(
+        content_kinds(&result),
+        vec![
+            "relocated",
+            "fork-context-ref",
+            "continued-in",
+            "worktree-state",
+            "artifact-comment-monitor",
+            "artifact-autoreact-ledger"
+        ]
+    );
+    for kind in ["session-owner", "tools-used", "launched", "failed", "tag"] {
+        assert_eq!(result.summary.ignored_types[kind], 1, "{kind}");
+    }
+}
+
+// Server-side tools (e.g. the advisor tool) return `<name>_tool_result`
+// blocks linked to a `server_tool_use` call; a model switch writes `fallback`.
+#[test]
+fn claude_server_tool_results_and_model_fallback() {
+    let rows = [
+        json!({"type":"assistant","sessionId":"s","uuid":"a","message":{"role":"assistant","content":[
+            {"type":"server_tool_use","id":"c","name":"advisor","input":{}},
+            {"type":"advisor_tool_result","tool_use_id":"c","content":{"type":"advisor_tool_result_error","error_code":"unavailable"}},
+            {"type":"fallback","from":{"model":"a"},"to":{"model":"b"}},
+            {"type":"text","text":"答"}
+        ]}}),
+    ];
+    let result = claude(&rows);
+    assert!(result.summary.is_supported(), "{:?}", result.summary);
+    let res = result.events.iter().find_map(|e| match &e.value {
+        Event::ToolResult(r) => Some(r),
+        _ => None,
+    });
+    let res = res.expect("server tool result");
+    assert_eq!(res.call_id.as_deref(), Some("c"));
+    assert_eq!(res.is_error, Some(true));
+    assert_eq!(content_kinds(&result), vec!["fallback"]);
+}
+
+// Paginated Codex history stores an attached local image as a path reference.
+#[test]
+fn codex_completed_user_message_keeps_local_image_reference() {
+    let rows = [
+        json!({"type":"session_meta","payload":{"id":"s","history_mode":"paginated"}}),
+        json!({"type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage","id":"u","content":[
+            {"type":"Text","text":"看图"},{"type":"local_image","path":"/tmp/a.png"}]}}}),
+    ];
+    let result = lines(Agent::Codex, &rows);
+    assert!(result.summary.is_supported(), "{:?}", result.summary);
+    assert_eq!(content_kinds(&result), vec!["local_image"]);
+}
+
+// Voice realtime sessions write start/close markers with no transcript text.
+#[test]
+fn codex_realtime_session_markers_are_ignored_but_other_items_stay_unknown() {
+    let rows = [
+        json!({"type":"realtime_item","ordinal":1,"timestamp":"2026-11-01T00:00:00Z","payload":{"type":"realtime_session_started","id":"r","realtime_session_id":"x"}}),
+        json!({"type":"realtime_item","ordinal":2,"timestamp":"2026-11-01T00:00:01Z","payload":{"type":"realtime_session_closed","id":"r","realtime_session_id":"x","outcome":"ok"}}),
+    ];
+    let result = lines(Agent::Codex, &rows);
+    assert!(result.summary.is_supported(), "{:?}", result.summary);
+    assert_eq!(result.summary.ignored_types["realtime_item"], 2);
+    let other = lines(
+        Agent::Codex,
+        &[json!({"type":"realtime_item","payload":{"type":"realtime_transcript","text":"x"}})],
+    );
+    assert!(!other.summary.is_supported());
+}

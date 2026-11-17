@@ -136,9 +136,24 @@ pub(crate) fn parse(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), 
         "attachment" | "summary" | "file-history-snapshot" | "file-history-delta" => {
             crate::adapters::native_content(None, kind, v, 1, p);
         }
+        // Request snapshots repeat transcript context (2.1.30x); session links
+        // and artifact state may carry paths or titles. Content, never messages.
+        "api-request"
+        | "api-request-blob"
+        | "api-request-shape"
+        | "relocated"
+        | "fork-context-ref"
+        | "continued-in"
+        | "worktree-state"
+        | "artifact-comment-monitor"
+        | "artifact-autoreact-ledger" => {
+            let role = v.pointer("/message/role").and_then(Value::as_str);
+            crate::adapters::native_content(role.and_then(Role::parse), kind, v, 1, p);
+        }
         "system" | "last-prompt" | "mode" | "permission-mode" | "ai-title" | "atis-latch"
         | "queue-operation" | "pr-link" | "custom-title" | "agent-name" | "cost-state"
-        | "started" | "result" | "frame-link" => p.ignored.push(kind.into()),
+        | "started" | "result" | "frame-link" | "session-owner" | "tools-used" | "launched"
+        | "failed" | "tag" => p.ignored.push(kind.into()),
         other => p.unknown.push(other.into()),
     }
     Ok(())

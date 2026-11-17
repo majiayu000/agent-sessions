@@ -108,7 +108,7 @@ pub(crate) fn parts(
                 | "redacted-reasoning" | "image" | "imageUrl" | "file" | "input_image"
                 | "output_image" | "image_url" | "audio_url" | "video_url" | "inputImage"
                 | "inputAudio" | "document" | "image_blob_ref" | "audio" | "video" | "input_audio"
-                | "output_audio" | "resource" | "resource_link" | "tool_reference",
+                | "output_audio" | "resource" | "resource_link" | "tool_reference" | "local_image",
             ) => {
                 if role.is_some() {
                     native_content(role, ty.unwrap(), b, 3 + i, p);
