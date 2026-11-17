@@ -1,5 +1,6 @@
 //! Snapshot imports for native JSON, patch-based JSONL, and read-only databases.
 //! JSON pointers / database row keys are retained instead of fabricated byte offsets.
+mod crush;
 mod cursor_cli;
 mod database;
 mod grok;
@@ -177,7 +178,7 @@ pub fn import_session_from<R: BufRead>(
     }
     if matches!(
         agent,
-        Agent::Cursor | Agent::ZCode | Agent::CursorCli | Agent::Warp
+        Agent::Cursor | Agent::ZCode | Agent::CursorCli | Agent::Warp | Agent::Crush
     ) {
         return Err(ReadError::InvalidOptions(
             "this agent requires import_database with a native session ID",

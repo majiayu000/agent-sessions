@@ -29,6 +29,7 @@ pub enum Agent {
     Zed,
     Warp,
     Antigravity,
+    Crush,
 }
 
 impl Agent {
@@ -60,6 +61,7 @@ impl Agent {
         Self::Zed,
         Self::Warp,
         Self::Antigravity,
+        Self::Crush,
     ];
 
     pub(crate) fn streaming(self) -> bool {

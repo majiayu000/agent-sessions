@@ -36,6 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some("cursor-cli") => Agent::CursorCli,
         Some("zed") => Agent::Zed,
         Some("warp") => Agent::Warp,
+        Some("crush") => Agent::Crush,
         Some("antigravity") => Agent::Antigravity,
         _ => return Err("unknown agent; see docs/support.md".into()),
     };

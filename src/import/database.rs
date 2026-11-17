@@ -18,6 +18,7 @@ fn open(agent: Agent, path: &Path, opts: &ReadOptions) -> Result<Connection, Imp
             | Agent::CursorCli
             | Agent::Zed
             | Agent::Warp
+            | Agent::Crush
     ) {
         return Err(ReadError::InvalidOptions("no database adapter for this agent").into());
     }
@@ -47,6 +48,9 @@ pub fn list_database_sessions(
 ) -> Result<Vec<DatabaseSession>, ImportError> {
     let conn = open(agent, path, opts)?;
     let mut result = Vec::new();
+    if agent == Agent::Crush {
+        return super::crush::list(&conn);
+    }
     if matches!(agent, Agent::OpenCode | Agent::ZCode) {
         let mut statement = conn
             .prepare("SELECT id,title,directory FROM session ORDER BY time_created,id")
@@ -186,7 +190,9 @@ pub fn import_database(
         session_id: Some(id.into()),
         ..Default::default()
     };
-    if agent == Agent::Warp {
+    if agent == Agent::Crush {
+        super::crush::import(&tx, id, opts, &mut result)?;
+    } else if agent == Agent::Warp {
         super::warp::import(&tx, id, opts, &mut result)?;
     } else if agent == Agent::CursorCli {
         super::cursor_cli::import(&tx, id, opts, &mut result)?;

@@ -45,6 +45,7 @@ fn agent(name: &str) -> Option<Agent> {
         "cursor-cli" => Agent::CursorCli,
         "zed" => Agent::Zed,
         "warp" => Agent::Warp,
+        "crush" => Agent::Crush,
         _ => return None,
     })
 }
