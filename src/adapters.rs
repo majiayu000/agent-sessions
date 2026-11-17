@@ -3,7 +3,9 @@ use crate::parser::{Parsed, State, required, string};
 use crate::*;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+mod qoder;
 mod workbuddy;
+use qoder::qoder;
 use workbuddy::workbuddy;
 
 pub(crate) fn seconds(v: Option<&Value>) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
@@ -1447,56 +1449,6 @@ fn cursor(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
         p.unknown.push("cursor:tool-payload".into());
     }
     Ok(())
-}
-fn qoder(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
-    let kind = v
-        .get("type")
-        .or_else(|| v.get("role"))
-        .and_then(Value::as_str)
-        .ok_or(LineErrorKind::MissingField("type or role"))?;
-    if let Some(id) = string(v, "sessionId") {
-        state.session_id = Some(id);
-    }
-    match kind {
-        "user" | "assistant" => {
-            let mut native = v.clone();
-            native["type"] = Value::String(kind.into());
-            if native.pointer("/message/role").is_none() {
-                native
-                    .get_mut("message")
-                    .and_then(Value::as_object_mut)
-                    .ok_or_else(|| LineErrorKind::InvalidField("message".into()))?
-                    .insert("role".into(), Value::String(kind.into()));
-            }
-            anthropic_session(&native, state, p)
-        }
-        "runtime-config" => {
-            state.model = string(v, "model");
-            p.emit(
-                0,
-                Event::Meta(MetaUpdate {
-                    session_id: state.session_id.clone(),
-                    model: state.model.clone(),
-                    ..Default::default()
-                }),
-            );
-            Ok(())
-        }
-        "session_meta" => {
-            match v.pointer("/data/meta_type").and_then(Value::as_str) {
-                Some("session_info" | "slash_command") => {
-                    p.ignored.push("qoder:session-metadata".into())
-                }
-                _ => p.unknown.push("qoder:session-metadata-variant".into()),
-            }
-            Ok(())
-        }
-        "workspace-directories" => {
-            p.ignored.push("qoder:workspace-directories".into());
-            Ok(())
-        }
-        _ => crate::claude::parse(v, state, p),
-    }
 }
 fn grokbot(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     p.record_id = string(v, "id");
