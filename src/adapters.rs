@@ -3,6 +3,8 @@ use crate::parser::{Parsed, State, required, string};
 use crate::*;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+mod workbuddy;
+use workbuddy::workbuddy;
 
 pub(crate) fn seconds(v: Option<&Value>) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
     let Some(v) = v.filter(|v| !v.is_null()) else {
@@ -1443,82 +1445,6 @@ fn cursor(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
         .is_some_and(|v| !v.is_empty())
     {
         p.unknown.push("cursor:tool-payload".into());
-    }
-    Ok(())
-}
-
-fn workbuddy(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
-    if let Some(id) = string(v, "sessionId") {
-        state.session_id = Some(id);
-    }
-    if let Some(model) = v.pointer("/providerData/model").and_then(Value::as_str) {
-        state.model = Some(model.into());
-    }
-    p.record_id = string(v, "id");
-    p.message_id = p.record_id.clone();
-    p.emit(
-        0,
-        Event::Meta(MetaUpdate {
-            session_id: state.session_id.clone(),
-            model: state.model.clone(),
-            cwd: string(v, "cwd"),
-            ..Default::default()
-        }),
-    );
-    match required(v, "type")? {
-        "message" => {
-            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
-                let role = Role::parse(required(v, "role")?)
-                    .ok_or_else(|| LineErrorKind::InvalidField("role".into()))?;
-                message(
-                    role,
-                    v.get("content")
-                        .ok_or(LineErrorKind::MissingField("content"))?,
-                    v,
-                    p,
-                )?;
-            }
-        }
-        "function_call" if p.wants(EventKinds::TOOL_CALL) => call(
-            string(v, "callId"),
-            required(v, "name")?,
-            v.get("arguments"),
-            3,
-            p,
-        ),
-        "function_call_result" if p.wants(EventKinds::TOOL_RESULT) => {
-            let error = match v.get("status").and_then(Value::as_str) {
-                Some("completed") => Some(false),
-                Some("failed" | "error") => Some(true),
-                _ => {
-                    p.unknown.push("workbuddy:result-status".into());
-                    None
-                }
-            };
-            result(
-                string(v, "callId"),
-                v.get("output")
-                    .ok_or(LineErrorKind::MissingField("output"))?,
-                error,
-                3,
-                p,
-            )?;
-        }
-        "reasoning" | "file-history-snapshot" => native_content(
-            if v["type"] == "reasoning" {
-                Some(Role::Assistant)
-            } else {
-                None
-            },
-            required(v, "type")?,
-            v,
-            1,
-            p,
-        ),
-        "function_call" | "function_call_result" | "ai-title" => p
-            .ignored
-            .push(format!("workbuddy:{}", required(v, "type")?)),
-        other => p.unknown.push(format!("workbuddy:{other}")),
     }
     Ok(())
 }
