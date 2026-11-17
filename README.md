@@ -4,7 +4,8 @@
 It reads Claude Code and Codex JSONL, with native adapters for Gemini CLI,
 Qwen Code, Kimi CLI, Pi, Copilot CLI, CodeBuddy, iFlow, OpenCode, Cline,
 Roo Code, Goose, Continue, Cursor, Grok Build, Cline CLI, Hermes Agent,
-WorkBuddy, Qoder, ZCode, Grok Bot, Cursor Agent CLI, Zed, Warp and Antigravity. The [support matrix](docs/support.md)
+WorkBuddy, Qoder, ZCode, Grok Bot, Cursor Agent CLI, Zed, Warp, Antigravity,
+Crush and OpenHands CLI (Kilo Code 7.x is read through the OpenCode database adapter). The [support matrix](docs/support.md)
 specifies the implemented formats, per-agent verification status, omissions and remaining gaps;
 this is not a claim of compatibility with every version of every agent.
 It discovers local sessions and streams messages, tool calls,
@@ -23,8 +24,8 @@ See the [upgrade and verification notes](docs/release-0.4.md) before upgrading;
 0.4 requires Rust 1.89 and changes default content/snapshot output.
 
 JSON/patch-based sessions use `import_session`; native OpenCode, Goose, Hermes,
-Cursor, Cursor Agent CLI, ZCode, Zed and Warp SQLite sessions use read-only
-`import_database`. Antigravity uses a full trajectory export from its native
+Cursor, Cursor Agent CLI, ZCode, Zed, Warp and Crush SQLite sessions use read-only
+`import_database`. OpenHands conversations are directories passed to `import_session`. Antigravity uses a full trajectory export from its native
 language service; [the exporter](examples/export_antigravity.py) reads the running
 macOS app without making a model request. Imported events retain
 JSON pointers, physical record locations, contributing file paths or database row keys. Check

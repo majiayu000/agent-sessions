@@ -1,11 +1,11 @@
 # 编程 agent 支持清单
 
-核查日期：2026-10-08。本清单记录**具体日志结构**，不是对某个品牌全部历史版本、
+核查日期：2026-10-08；2026-11-17 补充本机真实历史全量扫描及 Crush、OpenHands、Kilo Code。本清单记录**具体日志结构**，不是对某个品牌全部历史版本、
 未发布版本或全部能力的保证。Agent 是写入日志的客户端；GLM、DeepSeek、豆包等模型
 本身不是新的日志格式，接入这些模型的客户端按客户端格式解析。
 
-本轮范围为现有 26 个客户端；以下矩阵反映当前工作树，新增内容尚未发布。
-后文保留之前的验收记录，最新结果见文末「本轮补齐后的最终验收」。格式回归通过
+当前范围为 28 个客户端来源（0.4.0 的 26 个加 Crush、OpenHands；Kilo Code 走 OpenCode 读取）；以下矩阵反映当前工作树，新增内容尚未发布。
+后文保留之前的验收记录，最新真实历史结果见「2026-11-17 本机真实历史全量扫描」。格式回归通过
 不代表每个客户端都已完成真实新会话验收，缺少的证据仍明确列出。
 
 ## 已实现的来源
@@ -17,8 +17,8 @@
 
 | Agent | 读取来源 | 已提取内容与边界 | 实际客户端验收 |
 |---|---|---|---|
-| Claude Code | `projects/**/*.jsonl` | 原有消息、工具、用量和元数据读取；历史索引与标题索引仍受原有契约约束 | 已有真实日志抽读；2.1.281 新会话被服务端 403 阻塞 |
-| Codex | sessions / archived_sessions JSONL | response_item、早期 user_message/无 payload.type 的消息、token_count、token_usage_record；根据 session_meta.history_mode 自动选择分页 item_completed，避免正文重复 | 0.160.1 新会话实际运行，正文及工具内容校验通过 |
+| Claude Code | `projects/**/*.jsonl` | 原有消息、工具、用量和元数据读取；2.1.30x 的请求快照（api-request / api-request-blob / api-request-shape）、会话关联（relocated、fork-context-ref、continued-in）、worktree-state 与 artifact 状态保留为 Content，不计为消息；服务端工具 `*_tool_result` 块为 ToolResult，`fallback` 模型切换为 Content；session-owner、tools-used、launched、failed、tag 为元数据忽略；历史索引与标题索引仍受原有契约约束 | 11-17 本机全量 6952 个会话读取，6942 个完整支持；其余 9 个是 1h 缓存写入大于总缓存写入的厂商异常记录，Strict 策略按契约拒绝；2.1.281 新会话被服务端 403 阻塞 |
+| Codex | sessions / archived_sessions JSONL | response_item、早期 user_message/无 payload.type 的消息、token_count、token_usage_record；根据 session_meta.history_mode 自动选择分页 item_completed，避免正文重复；分页 `local_image` 引用为 Content；realtime 语音会话起止标记忽略，其他 realtime 载荷保持 unknown | 0.160.1 新会话实际运行，正文及工具内容校验通过；11-17 本机全量 438 个会话完整支持 |
 | Gemini CLI | 会话 JSON；session JSONL | 原生正文、toolCalls、tokens；JSONL 回放 `$patch`、`$set`、`$rewindTo`，不返回被替换的旧正文或已撤回消息 | 合成样例；尚未运行客户端验收 |
 | Qwen Code | `projects/*/chats/*.jsonl` | ChatRecord.message.parts，functionCall / functionResponse，usageMetadata；systemPayload 的正文/显示文本；其他系统结构按实际诊断判断 | 合成样例；尚未运行客户端验收 |
 | Kimi CLI / Kimi Code | 旧 wire/context JSONL；Kimi Code v2 wire journal | 旧 wire/SubagentEvent 分片合并并保留父工具关联；v2 合并 step 内内容及工具、延迟注入，按 agentId 回放 undo/clear/新旧压缩；保留原始计费用量，不补造中断工具结果；2.x 引擎历史 `agent.message.appended` 只作 Content（正文镜像 context.*，meta.usage 镜像 usage.record，不重复计数）；profile.bind、turn.steer、中断/审批/后台任务/插件/MCP 工具发现等可带文本的记录保留 Content，token_counting、runtime 绑定、prompt 完成、file_history 等纯元数据记为 ignored | 已有真实 v2 日志逐字段核对；新增上下文控制回归通过；2.3.1 本机 40 份 v2 日志只读扫描无 unknown；本机 0.29.0 新会话缺少 OAuth 登录 |
@@ -35,7 +35,7 @@
 | Cursor | 原生 globalStorage/state.vscdb | composerData、按 header 顺序的 bubbleId、ISO 时间戳（由会话状态重建的 bubble 写 `createdAt: ""`，按无时间处理）、toolFormerData；thinking/images/attachedFiles/context/richText 保留 Content；tokenCount 未确认为账单用量，不输出 Usage；缺失/加密正文及未识别工具会报 unknown | 已有真实数据库抽读；2026-11-17 本机 3.20.21 只读全量：210 个会话全部 supported（修复前 6 个因空 createdAt 报格式错误）；未新建 IDE 对话 |
 | Cline CLI | `sessions/*/*.messages.json` 会话快照 | messages[] 中 API 正文、工具、毫秒时间与 metrics；内部 `{query,result,success}` 结果保留原始数组，独立于 Cline IDE 的 API 历史文件 | 3.0.68 已有真实日志逐字段核对；新会话被认证错误阻塞 |
 | Hermes Agent | `sessions/session_*.json`、原生 `state.db` | OpenAI 消息、tool_calls、tool_call_id；SQLite 按原生 id 顺序、NUL+json 标记读取，恢复存在的 reasoning/reasoning_content/reasoning_details/codex_reasoning_items/codex_message_items；合并内容预算；不筛选 active/compacted 或伪造 session 汇总用量 | 已有 JSON 及三个真实数据库会话核对；新增原生 reasoning 列回归通过；新会话被 Unauthorized 阻塞 |
-| WorkBuddy | 权威 `.workbuddy/projects/**/*.jsonl` | message / function_call / function_call_result；参数保留原始字符串，结构化结果、毫秒时间；reasoning、媒体引用及文件快照保留为 Content；audit-log 不另算会话 | 本机 5.3.14 全部 29 个非空会话导入，工具参数/结果逐字段核对；本轮应用内附 CLI 2.115.0 启动后 180 秒无输出，端到端失败 |
+| WorkBuddy | 权威 `.workbuddy/projects/**/*.jsonl` | message / function_call / function_call_result；参数保留原始字符串，结构化结果、毫秒时间；reasoning、媒体引用、文件快照及 CodeBuddy SDK `session-meta` 保留为 Content；`incomplete`（被中断）的工具结果保留结果、成败未知；audit-log 不另算会话 | 本机 5.3.14 全部 29 个非空会话导入，工具参数/结果逐字段核对；本轮应用内附 CLI 2.115.0 启动后 180 秒无输出，端到端失败 |
 | Qoder | `.qoder/tasks/*/*.jsonl`、projects 主会话及 transcript JSONL | 旧 role/message 与新版 type/message，Claude 内容块、工具与元数据；`active-leaf`（SDK 叶指针）在 `explicit: false` 时为纯元数据，用户选定/回退的叶仍报 unknown，不据此裁剪分支；不把镜像 transcript 与主会话合并计数 | 本机 1.21.2 全部 18 个入口读取；115 条非空正文和 215 次工具参数与独立原生记录逐字段一致；2026-11-17 只读全量 126 个入口全部 supported，2141 条 active-leaf 均为 `explicit: false` 且指向其前最新一条记录；未新建对话 |
 | ZCode | 原生 `db.sqlite` 的 session/message/part | 按原生 sequence 读取消息/part、正文、工具与消息用量；timeline 是模型切换元数据；不读取 model-io 请求跟踪或任务索引作为第二份正文 | 本机 3.14.1 全部 50 个数据库会话：729 条消息、949 次调用及结果与独立 SQL 逐字段一致；未新建对话 |
 | Grok Bot | `sand-client-persistence/*.blob` 的 transcript replica | base32 文件名筛选会话；schemaVersion=1 的 value.entries；按厂商 renderer 读取角色/正文；附件、事件及工具轮廓保留 Content；有 id/name/status 的工具轮廓输出 Missing 参数，不伪造执行结果 | 本机 0.66.0 当前 19 个 replica 全部读取无 unknown；此前 18 个的 1041 条正文/角色独立核对一致；不保证缓存有服务端全部历史 |
@@ -43,6 +43,9 @@
 | Zed | 原生 threads.db 的 threads.data；DbThread JSON | 原生 User/Agent 外部标签，文本、Mention、ToolUse、完整 tool_results；Image/Thinking/RedactedThinking/Resume/Compaction 保留 Content；json/zstd 且限制解压体积；仅 request_token_usage，不重复累计 cumulative；不包含 ACP 的其他存储协议 | 本轮通过内置 Agent 创建新原生线程并完成文件任务；端到端发现 raw JSON 工具参数漏读，修复后正文、参数/结果关联、顺序、用量及来源验收通过；新增 raw/tagged input 回归 |
 | Warp | 原生 warp.sqlite 的 agent_tasks.task protobuf | 用户/助手正文、ToolCall oneof 参数、完整 ToolCallResult；userQuery 附件/上下文、agentReasoning 等原生载荷保留 Content；任务按数据库 id、每任务按消息顺序读取，不声明跨任务因果线性化；不累计 conversation_data 用量镜像 | 本机 0.2026.09.23.14.34.01 五个真实会话、九个任务读取；45 条消息、37 次调用、30 份结果，与独立官方 protobuf Python 解码逐字段一致 |
 | Antigravity | 原生语言服务完整 GetCascadeTrajectory JSON | userInput、plannerResponse、metadata.toolCall、完整执行结果和 modelUsage；调用按原生 id 去重，保留 pending；numTotalSteps 与 steps 长度不符直接失败；旧加密 pb/新 db 经厂商服务导出，不直接猜解密；额外 generator/executor 状态不作为正文 | 本机 2.19.1 原生服务读取四个会话，共 149 步（41/6/42/60），返回数量完整；未发起新模型对话 |
+| Crush | 项目内 `.crush/crush.db`（goose 迁移的 sessions/messages） | messages.parts 的 text、tool_call（参数原始字符串）、独立 tool 行的 tool_result；reasoning、image_url、binary、shell_command、sub_agent_report、finish（含停止原因和服务端错误）保留为 Content；压缩摘要消息为 Content；子会话为 sidechain；按 created_at（秒）+ rowid 排序；session 的 token 列是最后一步的覆盖值，不输出 Usage | 0.101.0 在隔离 HOME 中实际运行，模型请求被本机死代理拦截；生成的原生库完整读取；其余为合成回归 |
+| OpenHands CLI | `~/.openhands/conversations/<id>/` 的 base_state.json 与 `events/event-<idx>-<id>.json` | MessageEvent、ActionEvent（thought 为助手正文、tool_call 参数原始字符串）、ObservationEvent/AgentErrorEvent/UserRejectObservation 为工具结果；SystemPrompt、Condensation、状态、hook、日志事件为 Content；base_state 每次调用的 token_usages 为 Usage（response_id 去重），累计值不重复；按数字 idx 排序；时间戳无时区，只保留原文；去掉每个内容块上的 `cache_prompt` 缓存提示；不应用 condensation 的遗忘 | CLI 1.16.0（SDK 1.21.0）在隔离 HOME 中实际运行，模型端点指向本机死端口；生成的会话完整读取（system prompt + 用户消息）；动作/观察/用量依据 SDK 源码字段和合成回归 |
+| Kilo Code 7.x | `~/.local/share/kilo/kilo.db`（OpenCode 的 session/message/part 表） | 用 `Agent::OpenCode` 的 `import_database` 读取，语义同 OpenCode；不单独设 enum；旧版 v5（Roo 分支）的 api_conversation_history.json 未核对 | CLI 7.8.27 在隔离 HOME 中实际运行，生成的库完整读取 |
 
 所有结构化接口默认导出**文本、工具、可确认用量及原生 Content**。图片、音视频、
 thinking、签名、文件附件和上下文控制以 `Event::Content { role, kind, data }` 保存原始
@@ -178,6 +181,42 @@ Grok Build、Grok Bot 是不同客户端；Cursor IDE 和 Cursor Agent CLI 也�
 cargo run --locked --example verify_codex_session -- NATIVE_JSONL EXPECTED_REPLY_FILE EXPECTED_TOOL_OUTPUT_FILE
 ```
 
+## 2026-11-17 本机真实历史全量扫描
+
+用新增的 `examples/corpus_sweep.rs` 对本机全部可找到的原生会话做只读读取。它只输出计数和记录类型诊断，不输出路径、ID、标题、正文或工具载荷；JSONL 允许正在写入的最后一行截断，文件和行预算放宽到不触发。修复前是 0.4.0 发布代码（`015197b`），修复后是本分支合并后的代码。
+
+| 客户端 | 会话数 | 修复前完整支持 | 修复后完整支持 | 修复前的缺口 |
+|---|---:|---:|---:|---|
+| Claude Code | 6990 | 5025 / 6861 | 6981 | api-request 等请求快照、session-owner、relocated 等 15 类 unknown，10 个读取错误 |
+| Codex | 441 | 343 / 438 | 441 | 分页 `local_image`、`realtime_item` |
+| Grok Build | 633 | 375 | 633 | 3904 次服务端搜索没有工具名，compaction/workflow 等 11 类事件 |
+| Kimi Code v2 | 40 | 19 | 40 | 21 类 v2 引擎事件 |
+| Cursor Agent CLI | 930 | 238 | 930 | protobuf 新字段 46，4 个未落盘 store 报格式错误 |
+| Cursor IDE | 210 | 204 | 210 | 6 个会话含 `createdAt: ""` 的重建 bubble |
+| Qoder | 126 | 116 | 126 | 2141 条 `active-leaf` |
+| WorkBuddy | 45 | 43 | 45 | `session-meta`、`incomplete` 结果状态 |
+| OpenCode SQLite | 1074 | 1074 | 1074 | 无 |
+| Hermes（SQLite / JSON） | 22946 / 3 | 全部 | 全部 | 无 |
+| CodeBuddy、Cline CLI、ZCode、Grok Bot、Warp、Zed | 59 / 9 / 50 / 14 / 5 / 1 | 全部 | 全部 | 无 |
+| Crush 0.101.0（新增） | 1 | — | 1 | 隔离 HOME 实际运行生成 |
+| OpenHands CLI 1.16.0（新增） | 1 | — | 1 | 隔离 HOME 实际运行生成 |
+| Kilo Code 7.8.27（走 OpenCode） | 1 | 1 | 1 | 隔离 HOME 实际运行生成 |
+
+修复前的会话数取自第一次扫描，扫描期间本机仍在写入新会话，所以前后总数略有不同。Claude 剩下的 9 个不是格式缺口：这些用量记录的 `cache_creation.ephemeral_1h_input_tokens` 大于 `cache_creation_input_tokens`，默认 `AccountingPolicy::Strict` 按既有契约拒绝；`UsageStatistics` 会封顶并记录调整。修复后 Grok、Kimi 等的消息、工具结果和 Usage 计数没有因新分类重复增加，新增的主要是 Content（Grok 的工具调用多出 3904 次，正是原来缺名字的服务端搜索）。
+
+Crush、OpenHands 和 Kilo Code 的样本是在隔离 HOME 中运行客户端生成的：Crush 和 Kilo 的出站请求走本机不可用的代理，OpenHands 的模型端点指向本机死端口，三者都没有发出模型请求，只留下了用户消息、系统提示和失败记录。工具调用、工具结果和用量的读取依据上游源码字段和合成回归，没有真实样本。
+
+下游核对：ccstats PR #217（agent-sessions 0.4.0）分别用已发布的 0.4.0 和本分支编译，对截至 2026-11-16 的真实历史运行 `daily`、`codex daily`、`grok daily`、`kimi daily`、`session`（Claude、Codex）和 `tools --source claude` 的 JSON 输出。除定价缓存时长和 1e-14 量级的浮点求和顺序差异外，字段完全一致；Claude 工具统计 149 个工具的次数和占比一致，只有次数相同的工具排序不同（ccstats 的并列排序不稳定）。
+
+复跑方式（只输出汇总）：
+
+```sh
+cargo build --locked --release --example corpus_sweep
+./target/release/examples/corpus_sweep claude ~/.claude/projects
+./target/release/examples/corpus_sweep opencode ~/.local/share/opencode/opencode.db
+./target/release/examples/corpus_sweep cursor-cli ~/.cursor/chats
+```
+
 ## 尚未实现 / 不应标成已支持
 
 这份清单是持续维护的工作范围，不能用添加 enum 名称或通用 JSON 解析代替格式验收。
@@ -189,7 +228,9 @@ cargo run --locked --example verify_codex_session -- NATIVE_JSONL EXPECTED_REPLY
 | Amp | 官方有完整 JSON 导出，但本次未取得公开字段契约或可独立核对的导出样例 |
 | Factory Droid | 官方有 Sessions API 与 SDK；原生 JSONL 与新版 SDK 事件仍需单独的格式适配和样例 |
 | Aider | 原生日志是 Markdown，角色标记可能与正文标题冲突；不能宣称无损结构化解析 |
-| Crush / Kiro / Amazon Q | 未完成其原生数据库/schema 的版本核对与解析验收 |
+| Kiro / Amazon Q | 未完成其原生数据库/schema 的版本核对与解析验收 |
+| Trae Agent（开源 CLI） | 轨迹文件是整个任务的单个 JSON，`llm_interactions[].input_messages` 每次都是完整历史快照，重复极多；尚未实现，需要先定去重语义 |
+| Kilo Code v5（Roo 分支）旧任务 | `api_conversation_history.json` 带 Roo 扩展字段，未与 Roo 读取核对 |
 | JetBrains Junie、Devin、Replit、Tabnine 等 | 需要对应可访问的原生记录或官方导出契约；没有资料时保持未支持 |
 | Cline 其他 SDK 协议；CodeBuddy 外置 lane 指针/IDE 数据库 | 不从现有会话文件推断独立数据库或外置分支指针；需要该存储协议的独立证据 |
 | 所有客户端的新版本/未知记录 | 保持 unknown；取得最小脱敏样例后再适配，不将可能包含正文的类型直接加入忽略集 |

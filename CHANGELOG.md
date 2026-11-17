@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+All entries below come from a read-only sweep of real local histories with the
+new aggregate-only `examples/corpus_sweep.rs`; results are in
+[docs/support.md](docs/support.md#2026-11-17-本机真实历史全量扫描).
+
+- New source **Crush** (`.crush/crush.db`, `import_database`): text, tool calls,
+  tool-result rows, reasoning/media/run reports/finish parts as Content,
+  compaction summaries as Content, child sessions as sidechains. Session token
+  columns are a last-step snapshot, so no Usage is produced.
+- New source **OpenHands CLI** (`~/.openhands/conversations/<id>/`,
+  `import_session` on the directory or its `base_state.json`): messages,
+  action thoughts, tool calls, observations, agent errors and rejections;
+  system prompt, condensation, state and hook events as Content; per-call token
+  ledger as Usage. Event times have no offset, so only the native text is kept.
+- **Kilo Code** 7.x stores sessions in OpenCode's SQLite schema
+  (`~/.local/share/kilo/kilo.db`); read it with `Agent::OpenCode`.
+- Claude Code 2.1.30x: request snapshots (`api-request`, `api-request-blob`,
+  `api-request-shape`), session links (`relocated`, `fork-context-ref`,
+  `continued-in`), `worktree-state` and artifact state are Content, never extra
+  messages; server `*_tool_result` blocks are tool results; `fallback` model
+  switches are Content; `session-owner`, `tools-used`, `launched`, `failed` and
+  `tag` are ignored metadata.
+- Codex: paginated `local_image` references are Content; realtime voice session
+  start/close markers are ignored, other realtime payloads stay unknown.
+- WorkBuddy 5.x: CodeBuddy SDK `session-meta` is Content; an `incomplete` tool
+  result (interrupted) keeps an unknown outcome instead of being unknown.
+- The Cursor Agent CLI descriptor generator lives in
+  `scripts/cursor-agent-descriptor/`.
 - Grok Build 1.0.7x: name server-side search calls (`_meta.backend`) from their
   native `rawInput.variant` (WebSearch/XSearch); merge `_meta` across tool
   updates so a failed `toolNotRun` update keeps the original tool name; keep
