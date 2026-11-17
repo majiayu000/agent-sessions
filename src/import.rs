@@ -7,6 +7,7 @@ mod grok;
 mod kimi_records;
 mod kimi_v2;
 mod opencode_files;
+mod openhands;
 mod replay;
 mod warp;
 use crate::parser::{Parsed, State, tally};
@@ -136,6 +137,9 @@ pub fn import_session(
             .is_some_and(|name| name == "session")
     {
         return opencode_files::import(path, opts);
+    }
+    if agent == Agent::OpenHands {
+        return openhands::import(path, opts);
     }
     let file = File::open(path).map_err(ReadError::Io)?;
     let mut opts = opts.clone();

@@ -236,7 +236,7 @@ pub(crate) fn result(
     );
     Ok(())
 }
-fn usage(
+pub(crate) fn usage(
     counts: TokenCounts,
     semantics: TokenSemantics,
     model: Option<String>,

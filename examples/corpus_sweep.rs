@@ -46,6 +46,7 @@ fn agent(name: &str) -> Option<Agent> {
         "zed" => Agent::Zed,
         "warp" => Agent::Warp,
         "crush" => Agent::Crush,
+        "openhands" => Agent::OpenHands,
         _ => return None,
     })
 }
