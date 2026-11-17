@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Grok Build 1.0.7x: name server-side search calls (`_meta.backend`) from their
+  native `rawInput.variant` (WebSearch/XSearch); merge `_meta` across tool
+  updates so a failed `toolNotRun` update keeps the original tool name; keep
+  auto-compaction, compaction checkpoints, image drop/compress notices, workflow/goal progress
+  and scheduled-task records as native Content without emitting their
+  progress token counters as Usage; ignore `memory_flush_started`.
+- Kimi Code 2.x: keep the agent-loop engine history (`agent.message.appended`)
+  as native Content so its mirrored text and `meta.usage` are not counted
+  twice; keep text-bearing bookkeeping (system prompt binding, steer input,
+  step interruptions, approvals, interactions, background tasks, plugin
+  reminders, MCP tool discovery) as Content; record turn/runtime/prompt
+  lifecycle, `token_counting.*` context-size estimates and file-history
+  checkpoints as ignored. Move per-record Kimi v2 classification into its own
+  module.
+
 ## 0.4.0 (2026-11-16)
 
 See [upgrade notes](docs/release-0.4.md).

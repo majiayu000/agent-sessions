@@ -4,6 +4,7 @@ mod crush;
 mod cursor_cli;
 mod database;
 mod grok;
+mod kimi_records;
 mod kimi_v2;
 mod opencode_files;
 mod replay;

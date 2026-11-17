@@ -99,10 +99,17 @@ pub(super) fn import(
                 index
             };
             let row = &mut rows[index];
-            for key in ["rawInput", "_meta"] {
-                if let Some(value) = update.get(key) {
-                    row.update[key] = value.clone();
+            if let Some(value) = update.get("rawInput") {
+                row.update["rawInput"] = value.clone();
+            }
+            // Merge metadata keys: a later `{toolNotRun}` update must not
+            // erase the `x.ai/tool` identity from the original call.
+            match (row.update.get_mut("_meta"), update.get("_meta")) {
+                (Some(Value::Object(old)), Some(Value::Object(new))) => {
+                    old.extend(new.iter().map(|(k, v)| (k.clone(), v.clone())));
                 }
+                (_, Some(value)) => row.update["_meta"] = value.clone(),
+                _ => {}
             }
             row.sources.push(source.clone());
             if matches!(
@@ -169,7 +176,13 @@ pub(super) fn import(
             }
             "tool_call" => {
                 if p.wants(EventKinds::TOOL_CALL) {
-                    if let Some(name) = u.pointer("/_meta/x.ai~1tool/name").and_then(Value::as_str)
+                    // Server-side search calls have no `x.ai/tool` metadata; their
+                    // native identity is the backend variant (WebSearch/XSearch).
+                    let backend = u.pointer("/_meta/backend") == Some(&Value::Bool(true));
+                    if let Some(name) = u
+                        .pointer("/_meta/x.ai~1tool/name")
+                        .or_else(|| backend.then(|| u.pointer("/rawInput/variant")).flatten())
+                        .and_then(Value::as_str)
                     {
                         adapters::call(string(u, "toolCallId"), name, u.get("rawInput"), 0, &mut p);
                     } else {
@@ -274,7 +287,25 @@ pub(super) fn import(
                     &mut p,
                 );
             }
+            // Compaction, media normalization, workflow/goal progress and
+            // scheduled tasks can carry text; their token counters are progress
+            // figures (child sessions own their usage), not a billed ledger.
+            "auto_compact_started"
+            | "auto_compact_completed"
+            | "auto_compact_failed"
+            | "auto_compact_cancelled"
+            | "compaction_checkpoint"
+            | "image_dropped"
+            | "image_compressed"
+            | "workflow_updated"
+            | "goal_updated"
+            | "memory_flush_completed"
+            | "scheduled_task_created"
+            | "scheduled_task_deleted" => {
+                adapters::native_content(None, required(u, "sessionUpdate")?, u, 1, &mut p);
+            }
             "hook_execution"
+            | "memory_flush_started"
             | "hook_annotation"
             | "retry_state"
             | "background_tasks"
