@@ -41,6 +41,24 @@ pub(super) fn parse(content: &Value, p: &mut Parsed) -> Result<(), LineErrorKind
                     }),
                 );
             }
+            // Server tools return `<tool>_tool_result`; errors use `*_error` content.
+            kind if kind.ends_with("_tool_result") && p.wants(EventKinds::TOOL_RESULT) => {
+                let content = b.get("content").unwrap_or(&Value::Null);
+                let kind = content.get("type").and_then(Value::as_str);
+                p.emit(
+                    3 + index,
+                    Event::ToolResult(ToolResult {
+                        call_id: string(b, "tool_use_id"),
+                        is_error: kind.map(|k| k.ends_with("_error")),
+                        text: content
+                            .get("text")
+                            .and_then(Value::as_str)
+                            .unwrap_or("")
+                            .into(),
+                        output: Some(content.clone()),
+                    }),
+                );
+            }
             _ => {}
         }
     }

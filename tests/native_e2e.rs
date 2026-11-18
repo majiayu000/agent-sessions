@@ -335,7 +335,9 @@ fn live(agent: Agent) -> TestResult {
                     db.query_row("SELECT value FROM meta WHERE key='0'", [], |r| r.get(0))?;
                 let bytes: Vec<u8> = encoded
                     .as_bytes()
-                    .chunks_exact(2)
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
                     .map(|p| u8::from_str_radix(std::str::from_utf8(p)?, 16).map_err(Into::into))
                     .collect::<Result<_, Box<dyn Error>>>()?;
                 let meta: Value = serde_json::from_slice(&bytes)?;

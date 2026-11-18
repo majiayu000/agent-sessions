@@ -13,7 +13,11 @@ fn id(v: &Value, key: &'static str) -> Result<String, ImportError> {
     }
     Ok(id.into())
 }
-fn load(path: &Path, opts: &ReadOptions, result: &mut SessionImport) -> Result<Value, ImportError> {
+pub(super) fn load(
+    path: &Path,
+    opts: &ReadOptions,
+    result: &mut SessionImport,
+) -> Result<Value, ImportError> {
     let remaining = opts
         .max_file_bytes
         .map(|n| n.saturating_sub(result.summary.bytes_read));

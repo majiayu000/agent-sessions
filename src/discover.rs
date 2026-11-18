@@ -232,6 +232,8 @@ fn is_session_path(agent: Agent, path: &Path) -> bool {
         }
         Agent::Qoder => ext == "jsonl" && !path.components().any(|p| p.as_os_str() == "logs"),
         Agent::ZCode => name == "db.sqlite",
+        Agent::Crush => name == "crush.db",
+        Agent::OpenHands => name == "base_state.json",
         Agent::GrokBot => ext == "blob" && grokbot_transcript_name(path),
         Agent::CursorCli => name == "store.db",
         Agent::Zed => name == "threads.db" || ext == "json",

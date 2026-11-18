@@ -1,10 +1,13 @@
 //! Snapshot imports for native JSON, patch-based JSONL, and read-only databases.
 //! JSON pointers / database row keys are retained instead of fabricated byte offsets.
+mod crush;
 mod cursor_cli;
 mod database;
 mod grok;
+mod kimi_records;
 mod kimi_v2;
 mod opencode_files;
+mod openhands;
 mod replay;
 mod warp;
 use crate::parser::{Parsed, State, tally};
@@ -135,6 +138,9 @@ pub fn import_session(
     {
         return opencode_files::import(path, opts);
     }
+    if agent == Agent::OpenHands {
+        return openhands::import(path, opts);
+    }
     let file = File::open(path).map_err(ReadError::Io)?;
     let mut opts = opts.clone();
     if opts.stop_at_byte.is_none() {
@@ -177,7 +183,7 @@ pub fn import_session_from<R: BufRead>(
     }
     if matches!(
         agent,
-        Agent::Cursor | Agent::ZCode | Agent::CursorCli | Agent::Warp
+        Agent::Cursor | Agent::ZCode | Agent::CursorCli | Agent::Warp | Agent::Crush
     ) {
         return Err(ReadError::InvalidOptions(
             "this agent requires import_database with a native session ID",

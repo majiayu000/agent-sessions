@@ -1,5 +1,56 @@
 # Changelog
 
+## Unreleased
+
+All entries below come from a read-only sweep of real local histories with the
+new aggregate-only `examples/corpus_sweep.rs`; results are in
+[docs/support.md](docs/support.md#2026-11-17-本机真实历史全量扫描).
+
+- New source **Crush** (`.crush/crush.db`, `import_database`): text, tool calls,
+  tool-result rows, reasoning/media/run reports/finish parts as Content,
+  compaction summaries as Content, child sessions as sidechains. Session token
+  columns are a last-step snapshot, so no Usage is produced.
+- New source **OpenHands CLI** (`~/.openhands/conversations/<id>/`,
+  `import_session` on the directory or its `base_state.json`): messages,
+  action thoughts, tool calls, observations, agent errors and rejections;
+  system prompt, condensation, state and hook events as Content; per-call token
+  ledger as Usage. Event times have no offset, so only the native text is kept.
+- **Kilo Code** 7.x stores sessions in OpenCode's SQLite schema
+  (`~/.local/share/kilo/kilo.db`); read it with `Agent::OpenCode`.
+- Claude Code 2.1.30x: request snapshots (`api-request`, `api-request-blob`,
+  `api-request-shape`), session links (`relocated`, `fork-context-ref`,
+  `continued-in`), `worktree-state` and artifact state are Content, never extra
+  messages; server `*_tool_result` blocks are tool results; `fallback` model
+  switches are Content; `session-owner`, `tools-used`, `launched`, `failed` and
+  `tag` are ignored metadata.
+- Codex: paginated `local_image` references are Content; realtime voice session
+  start/close markers are ignored, other realtime payloads stay unknown.
+- WorkBuddy 5.x: CodeBuddy SDK `session-meta` is Content; an `incomplete` tool
+  result (interrupted) keeps an unknown outcome instead of being unknown.
+- The Cursor Agent CLI descriptor generator lives in
+  `scripts/cursor-agent-descriptor/`.
+- Grok Build 1.0.7x: name server-side search calls (`_meta.backend`) from their
+  native `rawInput.variant` (WebSearch/XSearch); merge `_meta` across tool
+  updates so a failed `toolNotRun` update keeps the original tool name; keep
+  auto-compaction, compaction checkpoints, image drop/compress notices, workflow/goal progress
+  and scheduled-task records as native Content without emitting their
+  progress token counters as Usage; ignore `memory_flush_started`.
+- Kimi Code 2.x: keep the agent-loop engine history (`agent.message.appended`)
+  as native Content so its mirrored text and `meta.usage` are not counted
+  twice; keep text-bearing bookkeeping (system prompt binding, steer input,
+  step interruptions, approvals, interactions, background tasks, plugin
+  reminders, MCP tool discovery) as Content; record turn/runtime/prompt
+  lifecycle, `token_counting.*` context-size estimates and file-history
+  checkpoints as ignored. Move per-record Kimi v2 classification into its own
+  module.
+- Cursor Agent CLI: regenerate the protobuf descriptors from CLI
+  2026.10.22-27dcf5f (field 46 `writes_voice_call_utterances` and other new
+  fields), keeping definitions removed upstream so older stores still decode;
+  read never-checkpointed stores (empty `latestRootBlobId`) as empty sessions;
+  keep voice-call utterances as native Content. Cursor IDE bubbles with
+  `createdAt: ""` read without a timestamp. Qoder automatic `active-leaf`
+  pointers are metadata; user-selected leaves stay unknown.
+
 ## 0.4.0 (2026-11-16)
 
 See [upgrade notes](docs/release-0.4.md).

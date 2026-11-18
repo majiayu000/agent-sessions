@@ -395,7 +395,7 @@ pub(super) fn fold(
                 }
                 ctx.reset();
             }
-            _ => super::replay::kimi_code_record(&v, &mut state, opts, sources, result)?,
+            _ => super::kimi_records::record(&v, &mut state, opts, sources, result)?,
         }
     }
     for (agent, mut ctx) in contexts {
@@ -422,7 +422,7 @@ pub(super) fn fold(
                 continue;
             }
             let v = serde_json::json!({"type":"context.append_message", "message":row.message, "time":row.time});
-            super::replay::kimi_code_record(&v, &mut state, opts, row.sources, result)?;
+            super::kimi_records::record(&v, &mut state, opts, row.sources, result)?;
         }
     }
     Ok(())

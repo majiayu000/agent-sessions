@@ -243,6 +243,15 @@ pub(crate) fn parse(
         | "compacted"
         | "world_state"
         | "inter_agent_communication_metadata" => p.ignored.push(kind.into()),
+        // Voice session lifecycle markers; any other realtime payload stays unknown.
+        "realtime_item"
+            if matches!(
+                v.pointer("/payload/type").and_then(Value::as_str),
+                Some("realtime_session_started" | "realtime_session_closed")
+            ) =>
+        {
+            p.ignored.push(kind.into())
+        }
         other => p.unknown.push(other.into()),
     }
     Ok(())

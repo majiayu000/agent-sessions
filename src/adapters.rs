@@ -3,6 +3,12 @@ use crate::parser::{Parsed, State, required, string};
 use crate::*;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+mod cursor;
+mod qoder;
+mod workbuddy;
+use cursor::cursor;
+use qoder::qoder;
+use workbuddy::workbuddy;
 
 pub(crate) fn seconds(v: Option<&Value>) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
     let Some(v) = v.filter(|v| !v.is_null()) else {
@@ -106,7 +112,7 @@ pub(crate) fn parts(
                 | "redacted-reasoning" | "image" | "imageUrl" | "file" | "input_image"
                 | "output_image" | "image_url" | "audio_url" | "video_url" | "inputImage"
                 | "inputAudio" | "document" | "image_blob_ref" | "audio" | "video" | "input_audio"
-                | "output_audio" | "resource" | "resource_link" | "tool_reference",
+                | "output_audio" | "resource" | "resource_link" | "tool_reference" | "local_image",
             ) => {
                 if role.is_some() {
                     native_content(role, ty.unwrap(), b, 3 + i, p);
@@ -230,7 +236,7 @@ pub(crate) fn result(
     );
     Ok(())
 }
-fn usage(
+pub(crate) fn usage(
     counts: TokenCounts,
     semantics: TokenSemantics,
     model: Option<String>,
@@ -1381,196 +1387,6 @@ fn goose(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
         );
     }
     Ok(())
-}
-fn cursor(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
-    p.message_id = string(v, "bubbleId");
-    p.at = if v.get("createdAt").is_some_and(Value::is_string) {
-        crate::parser::timestamp(v)?
-    } else {
-        millis(v.get("createdAt"))?
-    };
-    p.timestamp_text = string(v, "createdAt");
-    let role = match v.get("type").and_then(Value::as_u64) {
-        Some(1) => Role::User,
-        Some(2) => Role::Assistant,
-        _ => {
-            p.unknown.push("cursor:bubble-type".into());
-            return Ok(());
-        }
-    };
-    if let Some(text) = v.get("text").filter(|v| !v.is_null()) {
-        message(role, text, v, p)?;
-    } else {
-        p.unknown.push("cursor:missing-or-encrypted-text".into());
-    }
-    for (slot, key) in ["thinking", "images", "attachedFiles", "context", "richText"]
-        .iter()
-        .enumerate()
-    {
-        if let Some(data) = v.get(key).filter(|v| !v.is_null()) {
-            native_content(Some(role), key, data, 5 + slot, p);
-        }
-    }
-    // tokenCount is UI/context bookkeeping, not established per-response usage.
-    if let Some(tool) = v.get("toolFormerData").filter(|v| !v.is_null()) {
-        if let Some(name) = tool.get("name").and_then(Value::as_str) {
-            call(
-                string(tool, "toolCallId"),
-                name,
-                tool.get("rawArgs")
-                    .filter(|v| !v.is_null())
-                    .or_else(|| tool.get("params")),
-                3,
-                p,
-            );
-            if let Some(output) = tool.get("result").filter(|v| !v.is_null()) {
-                result(
-                    string(tool, "toolCallId"),
-                    output,
-                    tool.get("status")
-                        .and_then(Value::as_str)
-                        .map(|s| s == "error"),
-                    4,
-                    p,
-                )?;
-            }
-        } else {
-            p.unknown.push("cursor:tool-payload".into());
-        }
-    } else if v
-        .get("toolResults")
-        .and_then(Value::as_array)
-        .is_some_and(|v| !v.is_empty())
-    {
-        p.unknown.push("cursor:tool-payload".into());
-    }
-    Ok(())
-}
-
-fn workbuddy(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
-    if let Some(id) = string(v, "sessionId") {
-        state.session_id = Some(id);
-    }
-    if let Some(model) = v.pointer("/providerData/model").and_then(Value::as_str) {
-        state.model = Some(model.into());
-    }
-    p.record_id = string(v, "id");
-    p.message_id = p.record_id.clone();
-    p.emit(
-        0,
-        Event::Meta(MetaUpdate {
-            session_id: state.session_id.clone(),
-            model: state.model.clone(),
-            cwd: string(v, "cwd"),
-            ..Default::default()
-        }),
-    );
-    match required(v, "type")? {
-        "message" => {
-            if p.wants(EventKinds::MESSAGE) || p.wants(EventKinds::CONTENT) {
-                let role = Role::parse(required(v, "role")?)
-                    .ok_or_else(|| LineErrorKind::InvalidField("role".into()))?;
-                message(
-                    role,
-                    v.get("content")
-                        .ok_or(LineErrorKind::MissingField("content"))?,
-                    v,
-                    p,
-                )?;
-            }
-        }
-        "function_call" if p.wants(EventKinds::TOOL_CALL) => call(
-            string(v, "callId"),
-            required(v, "name")?,
-            v.get("arguments"),
-            3,
-            p,
-        ),
-        "function_call_result" if p.wants(EventKinds::TOOL_RESULT) => {
-            let error = match v.get("status").and_then(Value::as_str) {
-                Some("completed") => Some(false),
-                Some("failed" | "error") => Some(true),
-                _ => {
-                    p.unknown.push("workbuddy:result-status".into());
-                    None
-                }
-            };
-            result(
-                string(v, "callId"),
-                v.get("output")
-                    .ok_or(LineErrorKind::MissingField("output"))?,
-                error,
-                3,
-                p,
-            )?;
-        }
-        "reasoning" | "file-history-snapshot" => native_content(
-            if v["type"] == "reasoning" {
-                Some(Role::Assistant)
-            } else {
-                None
-            },
-            required(v, "type")?,
-            v,
-            1,
-            p,
-        ),
-        "function_call" | "function_call_result" | "ai-title" => p
-            .ignored
-            .push(format!("workbuddy:{}", required(v, "type")?)),
-        other => p.unknown.push(format!("workbuddy:{other}")),
-    }
-    Ok(())
-}
-fn qoder(v: &Value, state: &mut State, p: &mut Parsed) -> Result<(), LineErrorKind> {
-    let kind = v
-        .get("type")
-        .or_else(|| v.get("role"))
-        .and_then(Value::as_str)
-        .ok_or(LineErrorKind::MissingField("type or role"))?;
-    if let Some(id) = string(v, "sessionId") {
-        state.session_id = Some(id);
-    }
-    match kind {
-        "user" | "assistant" => {
-            let mut native = v.clone();
-            native["type"] = Value::String(kind.into());
-            if native.pointer("/message/role").is_none() {
-                native
-                    .get_mut("message")
-                    .and_then(Value::as_object_mut)
-                    .ok_or_else(|| LineErrorKind::InvalidField("message".into()))?
-                    .insert("role".into(), Value::String(kind.into()));
-            }
-            anthropic_session(&native, state, p)
-        }
-        "runtime-config" => {
-            state.model = string(v, "model");
-            p.emit(
-                0,
-                Event::Meta(MetaUpdate {
-                    session_id: state.session_id.clone(),
-                    model: state.model.clone(),
-                    ..Default::default()
-                }),
-            );
-            Ok(())
-        }
-        "session_meta" => {
-            match v.pointer("/data/meta_type").and_then(Value::as_str) {
-                Some("session_info" | "slash_command") => {
-                    p.ignored.push("qoder:session-metadata".into())
-                }
-                _ => p.unknown.push("qoder:session-metadata-variant".into()),
-            }
-            Ok(())
-        }
-        "workspace-directories" => {
-            p.ignored.push("qoder:workspace-directories".into());
-            Ok(())
-        }
-        _ => crate::claude::parse(v, state, p),
-    }
 }
 fn grokbot(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     p.record_id = string(v, "id");
