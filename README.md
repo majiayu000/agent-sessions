@@ -22,6 +22,9 @@ Version [v0.4.0](https://github.com/majiayu000/agent-sessions/releases/tag/v0.4.
 adds content preservation, snapshot replay and native storage improvements.
 See the [upgrade and verification notes](docs/release-0.4.md) before upgrading;
 0.4 requires Rust 1.89 and changes default content/snapshot output.
+[v0.4.1](https://github.com/majiayu000/agent-sessions/releases/tag/v0.4.1)
+adds Crush and OpenHands CLI sources and fixes record classification found in
+real local histories; see the [changelog](CHANGELOG.md).
 
 JSON/patch-based sessions use `import_session`; native OpenCode, Goose, Hermes,
 Cursor, Cursor Agent CLI, ZCode, Zed, Warp and Crush SQLite sessions use read-only
@@ -79,7 +82,7 @@ Claude cache counters, history timestamps, and incomplete JSONL tails.
 
 ```toml
 [dependencies]
-agent-sessions = "0.4.0"
+agent-sessions = "0.4.1"
 ```
 
 ```rust
