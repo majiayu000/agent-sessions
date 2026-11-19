@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 (2026-11-19)
+
+Compatible with 0.4.0: no dependency, minimum Rust (1.89) or public API removal.
+`Agent` is `#[non_exhaustive]`, so the new `Crush` and `OpenHands` variants do
+not break exhaustive matches. Records that 0.4.0 left unknown may now appear as
+Content or tool results, or be ignored as metadata.
 
 All entries below come from a read-only sweep of real local histories with the
 new aggregate-only `examples/corpus_sweep.rs`; results are in
