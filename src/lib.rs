@@ -31,6 +31,7 @@ pub use error::*;
 pub use event::*;
 pub use history::*;
 pub use import::*;
+pub use jiff::Timestamp;
 pub use meta::*;
 pub use projection::*;
 pub use raw::*;

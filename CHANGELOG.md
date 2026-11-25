@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Public parsed timestamp fields now use `agent_sessions::Timestamp`
+  (`jiff::Timestamp`) in place of `chrono::DateTime<Utc>`. They still
+  serialize as UTC timestamp strings. Jiff uses a narrower supported date range
+  and normalizes leap seconds. Native timestamp text remains available where
+  the source reader already exposes it.
+
 ## 0.4.1 (2026-11-19)
 
 Compatible with 0.4.0: no dependency, minimum Rust (1.89) or public API removal.

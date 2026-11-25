@@ -77,9 +77,8 @@ pub(super) fn import(
                 };
                 if let Some(at) = string(m, "timestamp") {
                     p.at = Some(
-                        DateTime::parse_from_rfc3339(&at)
-                            .map_err(|_| LineErrorKind::InvalidField("timestamp".into()))?
-                            .with_timezone(&Utc),
+                        at.parse::<Timestamp>()
+                            .map_err(|_| LineErrorKind::InvalidField("timestamp".into()))?,
                     );
                     p.timestamp_text = Some(at);
                 }

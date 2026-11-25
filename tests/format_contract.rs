@@ -56,7 +56,7 @@ fn meta_is_kept_and_timestamp_compatibility_is_explicit() {
         let mut row = json!({"type":"user","created_at":"100","message":{"content":"  meta  "}});
         row[flag] = json!(true);
         let e = events(Agent::ClaudeCode, &row.to_string(), EventKinds::ALL);
-        assert_eq!(e[0].at.unwrap().timestamp(), 100);
+        assert_eq!(e[0].at.unwrap().as_second(), 100);
         assert!(matches!(&e[0].value,Event::Message(m) if m.is_meta && m.text=="  meta  "));
     }
 }

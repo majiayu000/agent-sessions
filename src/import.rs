@@ -12,7 +12,7 @@ mod replay;
 mod warp;
 use crate::parser::{Parsed, State, tally};
 use crate::*;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use serde_json::Value;
 use std::{
@@ -73,7 +73,7 @@ pub enum ImportSource {
 pub struct ImportedEvent {
     /// All native records contributing to this event, including replay patches.
     pub sources: Vec<ImportSource>,
-    pub at: Option<DateTime<Utc>>,
+    pub at: Option<Timestamp>,
     pub timestamp_text: Option<String>,
     pub session_id: Option<String>,
     pub message_id: Option<String>,
