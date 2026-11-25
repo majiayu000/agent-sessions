@@ -5,7 +5,7 @@ use super::{
 };
 use crate::parser::{Parsed, State};
 use crate::{Event, LineErrorKind, ReadOptions, TokenCounts, UsageAdjustment};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use std::borrow::Cow;
@@ -83,7 +83,7 @@ pub(super) fn decode(
     h: &Header<'_>,
     state: &mut State,
     opts: &ReadOptions,
-    at: Option<DateTime<Utc>>,
+    at: Option<Timestamp>,
 ) -> Result<Option<Parsed>, DecodeError> {
     let Some(payload) = &h.payload else {
         return Err(DecodeError::Fields(LineErrorKind::MissingField("payload")));

@@ -46,9 +46,11 @@ fn reference(v: &Value, ordinal: u64) -> Option<Projection> {
             t.as_i64()
                 .or_else(|| t.as_str()?.trim().parse::<i64>().ok())
                 .or_else(|| {
-                    chrono::DateTime::parse_from_rfc3339(t.as_str()?.trim())
+                    t.as_str()?
+                        .trim()
+                        .parse::<jiff::Timestamp>()
                         .ok()
-                        .map(|t| t.timestamp())
+                        .map(|t| t.as_nanosecond().div_euclid(1_000_000_000) as i64)
                 })
         });
     Some((ordinal, role.into(), text, at))
@@ -122,7 +124,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 event.location.record_index,
                 role.to_owned(),
                 m.text,
-                event.at.map(|t| t.timestamp()),
+                event
+                    .at
+                    .map(|t| t.as_nanosecond().div_euclid(1_000_000_000) as i64),
             );
             match next_reference(&mut old, &mut ordinal) {
                 Ok(Some(reference)) => {

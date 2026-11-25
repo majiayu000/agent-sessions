@@ -169,7 +169,7 @@ fn transcript_preserves_legacy_and_role_specific_text_and_metadata() {
     let projected = project_transcript(Agent::Codex, &meta);
     assert_eq!(projected.meta.origin, Some(Origin::Exec));
     assert_eq!(projected.meta.model.as_deref(), Some("old-model"));
-    assert_eq!(projected.at.unwrap().timestamp_subsec_millis(), 123);
+    assert_eq!(projected.at.unwrap().subsec_millisecond(), 123);
     let claude = json!({"type":"user","isMeta":true,"message":{"content":[{"type":"text","text":""},{"type":"text","text":"你好"},{"type":"input_text","text":"excluded"}]}});
     let message = project_transcript(Agent::ClaudeCode, &claude)
         .message
@@ -177,6 +177,17 @@ fn transcript_preserves_legacy_and_role_specific_text_and_metadata() {
     assert!(message.is_meta);
     assert_eq!(message.first_text(), Some(""));
     assert_eq!(message.text, "\n你好");
+}
+
+#[test]
+fn timestamp_projection_retains_offsets_and_floors_pre_epoch_seconds() {
+    let row = json!({"type":"session_meta","timestamp":"1970-01-01T00:59:59.125+01:00"});
+    assert_eq!(tolerant_timestamp_epoch(&row), Some(-1));
+    let projection = project_transcript(Agent::Codex, &row);
+    assert_eq!(
+        serde_json::to_value(projection.at).unwrap(),
+        json!("1969-12-31T23:59:59.125Z"),
+    );
 }
 
 #[test]

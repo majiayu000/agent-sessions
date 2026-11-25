@@ -116,7 +116,7 @@ fn pi_records_preserve_branch_ids_tools_and_cache_semantics() {
         .iter()
         .find(|e| matches!(&e.value,Event::Message(m) if m.role==Role::User))
         .unwrap();
-    assert_eq!(user.at.unwrap().timestamp_millis(), 1700000000123);
+    assert_eq!(user.at.unwrap().as_millisecond(), 1700000000123);
     assert!(result.events.iter().any(|e| matches!(&e.value, Event::Message(m) if m.role == Role::Assistant && m.parent_id.as_deref() == Some("u"))));
     let u = usages(&result)[0];
     let exclusive = u.counts.exclusive(u.semantics).unwrap();
@@ -294,7 +294,7 @@ fn kimi_wire_assembles_text_and_argument_chunks_in_original_order() {
         .find(|e| matches!(&e.value,Event::Message(m) if m.role==Role::Assistant))
         .unwrap();
     assert_eq!(assistant.sources.len(), 2);
-    assert_eq!(assistant.at.unwrap().timestamp_subsec_millis(), 250);
+    assert_eq!(assistant.at.unwrap().subsec_millisecond(), 250);
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolCall(c) if c.arguments==ToolArgs::RawString("{\"command\":\"pwd\"}".into()))));
 }
 #[test]
@@ -330,7 +330,7 @@ fn kimi_code_v2_journal_uses_native_records_and_one_usage_ledger() {
         .iter()
         .find(|e| matches!(&e.value,Event::Message(m) if m.role==Role::Assistant))
         .unwrap();
-    assert_eq!(assistant.at.unwrap().timestamp_millis(), 1700000000123);
+    assert_eq!(assistant.at.unwrap().as_millisecond(), 1700000000123);
     assert_eq!(assistant.message_id.as_deref(), Some("step"));
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolResult(r) if r.call_id.as_deref()==Some("t")&&r.text=="native output"&&r.is_error==Some(false))));
     let unknown = lines(
@@ -409,7 +409,7 @@ fn opencode_export_nested_parts_and_native_timestamps() {
             .unwrap()
             .at
             .unwrap()
-            .timestamp_millis(),
+            .as_millisecond(),
         1700000000123
     );
 }
@@ -891,7 +891,7 @@ fn cursor_observed_iso_timestamp_and_tool_former_payload() {
             .unwrap()
             .at
             .unwrap()
-            .timestamp_subsec_millis(),
+            .subsec_millisecond(),
         123
     );
 }
@@ -952,10 +952,7 @@ fn grok_acp_folds_tools_keeps_native_output_and_one_turn_ledger() {
             .exclusive(usages(&result)[0].semantics)
             .is_none()
     );
-    assert_eq!(
-        result.events[0].at.unwrap().timestamp_millis(),
-        1700000000123
-    );
+    assert_eq!(result.events[0].at.unwrap().as_millisecond(), 1700000000123);
 }
 #[test]
 fn grok_partial_tools_unknown_extensions_and_projection_are_explicit() {
@@ -1129,7 +1126,7 @@ fn hermes_sqlite_structured_sentinel_and_budget_are_respected() {
             .unwrap()
             .at
             .unwrap()
-            .timestamp_millis(),
+            .as_millisecond(),
         1700000000250
     );
     assert_eq!(
@@ -1183,7 +1180,7 @@ fn workbuddy_native_calls_results_and_millisecond_identity() {
         .iter()
         .find(|e| matches!(e.value, Event::Message(_)))
         .unwrap();
-    assert_eq!(m.at.unwrap().timestamp_millis(), 1700000000123);
+    assert_eq!(m.at.unwrap().as_millisecond(), 1700000000123);
     assert_eq!(m.session_id.as_deref(), Some("s"));
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolCall(c) if c.arguments==ToolArgs::RawString("{\"path\":\"test\"}".into()))));
     assert!(result.events.iter().any(|e|matches!(&e.value,Event::ToolResult(r) if r.output==Some(output.clone())&&r.text==" 中文\n "&&r.is_error==Some(false))));

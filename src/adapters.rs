@@ -1,7 +1,7 @@
 //! Native record adapters. Format evidence and exclusions live in docs/support.md.
 use crate::parser::{Parsed, State, required, string};
 use crate::*;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde_json::Value;
 mod cursor;
 mod qoder;
@@ -10,7 +10,7 @@ use cursor::cursor;
 use qoder::qoder;
 use workbuddy::workbuddy;
 
-pub(crate) fn seconds(v: Option<&Value>) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
+pub(crate) fn seconds(v: Option<&Value>) -> Result<Option<Timestamp>, LineErrorKind> {
     let Some(v) = v.filter(|v| !v.is_null()) else {
         return Ok(None);
     };
@@ -21,16 +21,16 @@ pub(crate) fn seconds(v: Option<&Value>) -> Result<Option<DateTime<Utc>>, LineEr
     if !seconds.is_finite() || whole < i64::MIN as f64 || whole >= i64::MAX as f64 {
         return Err(LineErrorKind::InvalidField("timestamp".into()));
     }
-    DateTime::from_timestamp(whole as i64, ((seconds - whole) * 1e9) as u32)
+    Timestamp::new(whole as i64, ((seconds - whole) * 1e9) as i32)
         .map(Some)
-        .ok_or_else(|| LineErrorKind::InvalidField("timestamp".into()))
+        .map_err(|_| LineErrorKind::InvalidField("timestamp".into()))
 }
-pub(crate) fn millis(v: Option<&Value>) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
+pub(crate) fn millis(v: Option<&Value>) -> Result<Option<Timestamp>, LineErrorKind> {
     match v.filter(|v| !v.is_null()) {
         None => Ok(None),
         Some(v) => v
             .as_i64()
-            .and_then(DateTime::from_timestamp_millis)
+            .and_then(|value| Timestamp::from_millisecond(value).ok())
             .map(Some)
             .ok_or_else(|| LineErrorKind::InvalidField("timestamp".into())),
     }
@@ -1646,9 +1646,8 @@ fn zed(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
 fn antigravity(v: &Value, p: &mut Parsed) -> Result<(), LineErrorKind> {
     if let Some(at) = v.pointer("/metadata/createdAt").and_then(Value::as_str) {
         p.at = Some(
-            DateTime::parse_from_rfc3339(at)
-                .map_err(|_| LineErrorKind::InvalidField("createdAt".into()))?
-                .with_timezone(&Utc),
+            at.parse::<Timestamp>()
+                .map_err(|_| LineErrorKind::InvalidField("createdAt".into()))?,
         );
         p.timestamp_text = Some(at.into());
     }
