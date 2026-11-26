@@ -35,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
+      - name: Check fuzz lockfile
+        run: cargo +nightly metadata --locked --format-version 1 --manifest-path fuzz/Cargo.toml > /dev/null
       - run: cargo +nightly install cargo-fuzz --version 0.13.2 --locked
       - name: Seed with synthetic fixtures
         run: |
