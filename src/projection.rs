@@ -1,7 +1,7 @@
 //! Tolerant projections for consumers that retain the original JSON record.
 //! These helpers do not validate records or establish snapshot completeness.
 use crate::{Agent, Message, MetaUpdate, Role};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,11 +21,7 @@ pub fn tolerant_timestamp_epoch(v: &Value) -> Option<i64> {
         .or_else(|| v.pointer("/payload/timestamp"))?;
     t.as_i64()
         .or_else(|| t.as_str()?.trim().parse().ok())
-        .or_else(|| {
-            DateTime::parse_from_rfc3339(t.as_str()?.trim())
-                .ok()
-                .map(|d| d.timestamp())
-        })
+        .or_else(|| crate::parser::rfc3339(t.as_str()?).map(|at| at.as_second()))
 }
 
 fn text(
@@ -124,7 +120,7 @@ pub fn project_codex_function(v: &Value) -> Option<CodexFunction<'_>> {
 pub struct TranscriptProjection {
     pub message: Option<Message>,
     pub meta: MetaUpdate,
-    pub at: Option<DateTime<Utc>>,
+    pub at: Option<Timestamp>,
 }
 
 /// Tolerant native transcript projection, including legacy Codex envelopes.
@@ -136,11 +132,7 @@ pub fn project_transcript(agent: Agent, v: &Value) -> TranscriptProjection {
         .into_iter()
         .flatten()
         .filter_map(Value::as_str)
-        .find_map(|s| {
-            DateTime::parse_from_rfc3339(s)
-                .ok()
-                .map(|d| d.with_timezone(&Utc))
-        });
+        .find_map(crate::parser::rfc3339);
     let kind = v.get("type").and_then(Value::as_str).unwrap_or("");
     let mut meta = MetaUpdate::default();
     let mut candidate = None;

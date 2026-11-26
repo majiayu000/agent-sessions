@@ -5,7 +5,7 @@ struct NativeMessage {
     value: Value,
     sources: Vec<ImportSource>,
 }
-type WireCall = (Value, Vec<ImportSource>, Option<DateTime<Utc>>);
+type WireCall = (Value, Vec<ImportSource>, Option<jiff::Timestamp>);
 fn invalid(key: &str) -> LineErrorKind {
     LineErrorKind::InvalidField(key.into())
 }
@@ -213,7 +213,7 @@ pub(super) fn gemini(
 fn flush_text(
     text: &mut String,
     sources: &mut Vec<ImportSource>,
-    at: &mut Option<DateTime<Utc>>,
+    at: &mut Option<jiff::Timestamp>,
     opts: &ReadOptions,
     result: &mut SessionImport,
 ) -> Result<(), ImportError> {

@@ -1,5 +1,5 @@
 use crate::{Located, MetaUpdate, Origin};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 #[derive(Debug, Clone, Default)]
 pub struct SessionMeta {
@@ -9,7 +9,7 @@ pub struct SessionMeta {
     pub model: Option<String>,
     pub agent_version: Option<String>,
     pub origin: Origin,
-    pub started_at: Option<DateTime<Utc>>,
+    pub started_at: Option<Timestamp>,
 }
 impl SessionMeta {
     /// Applies explicit updates; origin uses Subagent > Exec > Ide > Interactive.

@@ -69,7 +69,7 @@ fn history_timestamp_units_and_repeated_ids_are_preserved() {
     .next()
     .unwrap()
     .unwrap();
-    assert_eq!(e.at.unwrap().timestamp(), 1);
+    assert_eq!(e.at.unwrap().as_second(), 1);
     assert_eq!(e.value.text.as_deref(), Some("text"));
     let codex = b"{\"session_id\":\"same\",\"ts\":1000}\n{\"session_id\":\"same\",\"ts\":1001}\n";
     let rows = read_history_from(Agent::Codex, Cursor::new(codex), &HistoryOptions::default())
@@ -77,7 +77,7 @@ fn history_timestamp_units_and_repeated_ids_are_preserved() {
         .collect::<Result<Vec<_>, _>>()
         .unwrap();
     assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0].at.unwrap().timestamp(), 1000);
+    assert_eq!(rows[0].at.unwrap().as_second(), 1000);
     assert!(rows[0].value.text.is_none());
     assert_ne!(rows[0].location, rows[1].location);
 }

@@ -88,9 +88,7 @@ impl Payload<'_> {
     }
 }
 impl Header<'_> {
-    pub(super) fn timestamp(
-        &self,
-    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, super::DecodeError> {
+    pub(super) fn timestamp(&self) -> Result<Option<jiff::Timestamp>, super::DecodeError> {
         let native = self
             .timestamp
             .or(self.created_at)

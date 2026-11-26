@@ -1,5 +1,5 @@
 use crate::{Agent, CodexUsageMode, Event, EventKinds, LineErrorKind, TokenCounts};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -32,7 +32,7 @@ pub(crate) struct Parsed {
     pub include: EventKinds,
     pub unknown: Vec<String>,
     pub ignored: Vec<String>,
-    pub at: Option<DateTime<Utc>>,
+    pub at: Option<Timestamp>,
     pub message_id: Option<String>,
 }
 impl Parsed {
@@ -70,7 +70,7 @@ fn timestamp_value(v: &Value) -> Option<&Value> {
         .or_else(|| v.pointer("/payload/timestamp"))
         .or_else(|| v.pointer("/data/message/timestamp"))
 }
-pub(crate) fn timestamp(v: &Value) -> Result<Option<DateTime<Utc>>, LineErrorKind> {
+pub(crate) fn timestamp(v: &Value) -> Result<Option<Timestamp>, LineErrorKind> {
     let t = timestamp_value(v);
     let Some(t) = t.filter(|t| !t.is_null()) else {
         return Ok(None);
@@ -81,15 +81,16 @@ pub(crate) fn timestamp(v: &Value) -> Result<Option<DateTime<Utc>>, LineErrorKin
 }
 
 /// Shared conversion for Value and borrowed statistical headers.
-pub(crate) fn timestamp_parts(integer: Option<i64>, text: Option<&str>) -> Option<DateTime<Utc>> {
+pub(crate) fn timestamp_parts(integer: Option<i64>, text: Option<&str>) -> Option<Timestamp> {
     integer
         .or_else(|| text?.trim().parse().ok())
-        .and_then(|s| DateTime::from_timestamp(s, 0))
-        .or_else(|| {
-            DateTime::parse_from_rfc3339(text?.trim())
-                .ok()
-                .map(|d| d.with_timezone(&Utc))
-        })
+        .and_then(|s| Timestamp::from_second(s).ok())
+        .or_else(|| rfc3339(text?))
+}
+
+/// An RFC 3339 time with an offset, read as an instant.
+pub(crate) fn rfc3339(text: &str) -> Option<Timestamp> {
+    text.trim().parse().ok()
 }
 pub(crate) fn text(v: &Value, parsed: &mut Parsed) -> Result<String, LineErrorKind> {
     text_projection(v, parsed, None).map(|(text, _)| text)

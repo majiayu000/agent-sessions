@@ -169,7 +169,7 @@ fn transcript_preserves_legacy_and_role_specific_text_and_metadata() {
     let projected = project_transcript(Agent::Codex, &meta);
     assert_eq!(projected.meta.origin, Some(Origin::Exec));
     assert_eq!(projected.meta.model.as_deref(), Some("old-model"));
-    assert_eq!(projected.at.unwrap().timestamp_subsec_millis(), 123);
+    assert_eq!(projected.at.unwrap().subsec_millisecond(), 123);
     let claude = json!({"type":"user","isMeta":true,"message":{"content":[{"type":"text","text":""},{"type":"text","text":"你好"},{"type":"input_text","text":"excluded"}]}});
     let message = project_transcript(Agent::ClaudeCode, &claude)
         .message

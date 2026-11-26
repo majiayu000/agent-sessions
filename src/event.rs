@@ -1,5 +1,5 @@
 use crate::{Endpoint, Origin, Role, TokenCounts, TokenSemantics, UsageBasis};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -15,7 +15,7 @@ pub struct Location {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Located<T> {
     pub location: Location,
-    pub at: Option<DateTime<Utc>>,
+    pub at: Option<Timestamp>,
     pub timestamp_text: Option<String>,
     pub record_id: Option<String>,
     pub record_type: Option<String>,

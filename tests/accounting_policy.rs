@@ -217,7 +217,7 @@ fn statistical_fast_and_general_paths_share_timestamp_diagnostics() {
     let (events, errors, summary) = statistics_outcome(&row, EventKinds::USAGE);
     assert!(errors.is_empty());
     assert_eq!(events.len(), 1);
-    assert_eq!(events[0].at.unwrap().timestamp(), 100);
+    assert_eq!(events[0].at.unwrap().as_second(), 100);
     assert!(matches!(&events[0].value, Event::Usage(usage) if usage.counts.input == Some(10)));
     assert_eq!(summary["status"], "Complete");
     let row = json!({"type":"event_msg","timestamp":"broken","payload":{"type":"agent_message"}});

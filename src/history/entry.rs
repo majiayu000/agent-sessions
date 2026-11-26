@@ -1,5 +1,5 @@
 use crate::{Agent, LineErrorKind};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -7,7 +7,7 @@ use serde_json::Value;
 pub struct HistoryEntry {
     pub session_id: Option<String>,
     pub text: Option<String>,
-    pub at: Option<DateTime<Utc>>,
+    pub at: Option<Timestamp>,
     /// Native integer timestamp: milliseconds for Claude, seconds for Codex.
     /// Retained even when outside the representable datetime range.
     pub timestamp: Option<i64>,
@@ -43,8 +43,8 @@ pub fn history_entry(agent: Agent, v: &Value, strict: bool) -> Result<HistoryEnt
         None | Some(Value::Null) => None,
         Some(t) => {
             let at = t.as_i64().and_then(|n| match agent {
-                Agent::ClaudeCode => DateTime::from_timestamp_millis(n),
-                Agent::Codex => DateTime::from_timestamp(n, 0),
+                Agent::ClaudeCode => Timestamp::from_millisecond(n).ok(),
+                Agent::Codex => Timestamp::from_second(n).ok(),
                 _ => None,
             });
             if at.is_none() {

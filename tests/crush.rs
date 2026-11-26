@@ -130,7 +130,7 @@ fn crush_session_text_tools_and_native_parts() {
         .iter()
         .find(|e| matches!(e.value, Event::Message(_)))
         .unwrap();
-    assert_eq!(first.at.unwrap().timestamp(), 100);
+    assert_eq!(first.at.unwrap().as_second(), 100);
 }
 
 #[test]

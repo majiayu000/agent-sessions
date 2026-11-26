@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+Breaking: every public time is now a `jiff::Timestamp` instead of
+`chrono::DateTime<Utc>` (`Event.at`, `SessionMeta.started_at`, history entry
+and import times). chrono is unmaintained (RUSTSEC-2026-0543); jiff is the
+replacement the advisory recommends, and chrono is no longer a dependency.
+
+- Serialized times are still RFC 3339 in UTC with a `Z` suffix. Fractional
+  seconds drop trailing zeros (`.120Z` is now `.12Z`); both forms deserialize
+  to the same instant with either library.
+- Text times are parsed by jiff, which also accepts RFC 3339 times without
+  seconds (`2026-01-02T03:04Z`). Times without an offset are still rejected.
+- Method names follow jiff: `as_second()`, `as_millisecond()`,
+  `subsec_millisecond()` in place of chrono's `timestamp*()`.
+
 ## 0.4.1 (2026-11-19)
 
 Compatible with 0.4.0: no dependency, minimum Rust (1.89) or public API removal.
