@@ -191,6 +191,32 @@ fn timestamp_projection_retains_offsets_and_floors_pre_epoch_seconds() {
 }
 
 #[test]
+fn goose_fractional_seconds_parse_on_both_sides_of_the_unix_epoch() {
+    for (created, expected_nanos) in [
+        (1.25, 1_250_000_000),
+        (-1.25, -1_250_000_000),
+        (-0.999_999_999_999_999_9, -1_000_000_000),
+        (-1e-18, -1),
+    ] {
+        let export = json!({"id":"g","conversation":[
+            {"id":"u","role":"user","created":created,"content":[{"type":"text","text":"request"}]}
+        ]});
+        let imported = import_session_from(
+            Agent::Goose,
+            Cursor::new(export.to_string()),
+            &ReadOptions::default(),
+        )
+        .unwrap();
+        let message = imported
+            .events
+            .iter()
+            .find(|event| matches!(event.value, Event::Message(_)))
+            .expect("expected Goose message");
+        assert_eq!(message.at.unwrap().as_nanosecond(), expected_nanos);
+    }
+}
+
+#[test]
 fn explicit_directory_preserves_root_and_reports_absence() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("subagents/explicit");
