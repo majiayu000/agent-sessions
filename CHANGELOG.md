@@ -1,12 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Public parsed timestamp fields now use `agent_sessions::Timestamp`
-  (`jiff::Timestamp`) in place of `chrono::DateTime<Utc>`. They still
-  serialize as UTC timestamp strings. Jiff uses a narrower supported date range
-  and normalizes leap seconds. Native timestamp text remains available where
-  the source reader already exposes it.
+  (`jiff::Timestamp`) in place of `chrono::DateTime<Utc>`. This is a
+  breaking Rust API change. Use `as_millisecond()` for epoch milliseconds
+  and `subsec_millisecond()` for the signed millisecond fraction.
+- Serialized timestamps remain UTC strings with a `Z` suffix. Fractional
+  seconds omit trailing zeroes, so `.120Z` can become `.12Z` without changing
+  the instant. Native timestamp text remains available where it was exposed before.
+  Jiff uses a narrower date range and normalizes leap seconds. The minimum
+  supported Rust version remains 1.89.
 
 ## 0.4.1 (2026-11-19)
 

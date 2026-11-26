@@ -26,6 +26,10 @@ See the [upgrade and verification notes](docs/release-0.4.md) before upgrading;
 adds Crush and OpenHands CLI sources and fixes record classification found in
 real local histories; see the [changelog](CHANGELOG.md).
 
+In 0.5, public parsed timestamps use `agent_sessions::Timestamp`
+(`jiff::Timestamp`). See the [migration notes](CHANGELOG.md#050) for the
+Rust API and serialized timestamp changes.
+
 JSON/patch-based sessions use `import_session`; native OpenCode, Goose, Hermes,
 Cursor, Cursor Agent CLI, ZCode, Zed, Warp and Crush SQLite sessions use read-only
 `import_database`. OpenHands conversations are directories passed to `import_session`. Antigravity uses a full trajectory export from its native
@@ -82,7 +86,7 @@ Claude cache counters, history timestamps, and incomplete JSONL tails.
 
 ```toml
 [dependencies]
-agent-sessions = "0.4.1"
+agent-sessions = "0.5.0"
 ```
 
 ```rust

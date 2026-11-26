@@ -1,6 +1,6 @@
 [package]
 name = "agent-sessions"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.89"
 description = "Read native coding-agent sessions as typed Rust events with source provenance"
